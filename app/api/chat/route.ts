@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { insufficientContextResponse } from "@/lib/guardrails";
 
 export async function POST(request: Request) {
   try {
@@ -12,10 +13,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      answer: `Backend respondeu com sucesso. Pergunta recebida: ${question}`,
-      status: "OK",
-    });
+    return NextResponse.json(insufficientContextResponse());
   } catch (error) {
     return NextResponse.json(
       {
