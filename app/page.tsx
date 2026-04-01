@@ -7,23 +7,39 @@ export default function HomePage() {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSend() {
-    if (!question.trim()) return;
+async function handleSend() {
+  if (!question.trim()) return;
 
-    setLoading(true);
-    setResponse("");
+  setLoading(true);
+  setResponse("");
 
-    try {
-      // por enquanto resposta fake, só para validar a interface
-      await new Promise((resolve) => setTimeout(resolve, 800));
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: question }),
+    });
 
-      setResponse(`Pergunta recebida: ${question}`);
-    } catch (error) {
-      setResponse("Erro ao processar a solicitação.");
-    } finally {
-      setLoading(false);
+    const data = await res.json();
+
+    if (!res.ok) {
+   setResponse(
+  data?.details
+    ? `${data?.error ?? "Erro"}\n\nDetalhes: ${data.details}`
+    : data?.error ?? "Erro ao processar a solicitação."
+);
+      return;
     }
+
+    setResponse(data.answer ?? "Sem resposta.");
+  } catch (error) {
+    setResponse("Erro ao chamar a API.");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
