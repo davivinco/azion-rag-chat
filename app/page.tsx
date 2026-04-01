@@ -1,6 +1,6 @@
-export const runtime = "edge";
-
 "use client";
+
+export const runtime = "edge";
 
 import { useState } from "react";
 
@@ -9,39 +9,39 @@ export default function HomePage() {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
 
-async function handleSend() {
-  if (!question.trim()) return;
+  async function handleSend() {
+    if (!question.trim()) return;
 
-  setLoading(true);
-  setResponse("");
+    setLoading(true);
+    setResponse("");
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: question }),
-    });
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: question }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-   setResponse(
-  data?.details
-    ? `${data?.error ?? "Erro"}\n\nDetalhes: ${data.details}`
-    : data?.error ?? "Erro ao processar a solicitação."
-);
-      return;
+      if (!res.ok) {
+        setResponse(
+          data?.details
+            ? `${data?.error ?? "Erro"}\n\nDetalhes: ${data.details}`
+            : data?.error ?? "Erro ao processar a solicitação."
+        );
+        return;
+      }
+
+      setResponse(data.answer ?? "Sem resposta.");
+    } catch (error) {
+      setResponse("Erro ao chamar a API.");
+    } finally {
+      setLoading(false);
     }
-
-    setResponse(data.answer ?? "Sem resposta.");
-  } catch (error) {
-    setResponse("Erro ao chamar a API.");
-  } finally {
-    setLoading(false);
   }
-}
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
