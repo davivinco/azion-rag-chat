@@ -1,0 +1,78 @@
+{
+  "name": "azion-rag-chat-20260401234459",
+  "bucket": "rag-chat-20260401234459",
+  "preset": "next",
+  "env": "production",
+  "prefix": "20260401234457",
+  "rotate-prefix": true,
+  "not-first-run": true,
+  "function": [
+    {
+      "id": 51988,
+      "name": "azion-rag-chat-20260401234459",
+      "file": "",
+      "args": "./azion/args.json",
+      "instance-id": 46645,
+      "instance-name": "",
+      "cache-id": 0
+    }
+  ],
+  "application": {
+    "id": 1775087989,
+    "name": "azion-rag-chat-20260401234459"
+  },
+  "domain": {
+    "id": 0,
+    "name": "__DEFAULT__",
+    "domain_name": "",
+    "url": ""
+  },
+  "rt-purge": {
+    "purge_on_publish": true
+  },
+  "origin": null,
+  "rules-engine": {
+    "created": false,
+    "rules": [
+      {
+        "id": 534475,
+        "name": "Next.js Static Assets and set cache policy",
+        "phase": "request"
+      },
+      {
+        "id": 534476,
+        "name": "Deliver Static Assets and set cache policy",
+        "phase": "request"
+      },
+      {
+        "id": 534477,
+        "name": "Execute Next.js Function",
+        "phase": "request"
+      }
+    ]
+  },
+  "cache-settings": [
+    {
+      "id": 276864,
+      "name": "azion-rag-chat-20260401234459"
+    }
+  ],
+  "workloads": {
+    "id": 1775082718,
+    "name": "azion-rag-chat-20260401234459",
+    "domains": [],
+    "url": "https://kkcutuewg8u.map.azionedge.net",
+    "deployment_id": [
+      {
+        "id": 190620,
+        "name": "azion-rag-chat-20260401234459"
+      }
+    ]
+  },
+  "connectors": [
+    {
+      "id": 13239,
+      "name": "azion-rag-chat-20260401234459"
+    }
+  ]
+}
