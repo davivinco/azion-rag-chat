@@ -3,7 +3,7 @@
   "bucket": "rag-chat-20260401234459",
   "preset": "next",
   "env": "production",
-  "prefix": "20260401234457",
+  "prefix": "20260402183429",
   "rotate-prefix": true,
   "not-first-run": true,
   "function": [

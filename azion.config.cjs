@@ -27,7 +27,7 @@ module.exports = {
       name: 'rag-chat-20260401234459',
       dir: '.edge/next-build-assets',
       workloadsAccess: 'read_only',
-      prefix: '20260401234457'
+      prefix: '20260402183429'
     }
   ],
   connectors: [
@@ -37,7 +37,7 @@ module.exports = {
       type: 'storage',
       attributes: {
         bucket: 'rag-chat-20260401234459',
-        prefix: '20260401234457'
+        prefix: '20260402183429'
       }
     }
   ],
@@ -48,7 +48,7 @@ module.exports = {
       bindings: {
         storage: {
           bucket: 'rag-chat-20260401234459',
-          prefix: '20260401234457'
+          prefix: '20260402183429'
         }
       }
     }
