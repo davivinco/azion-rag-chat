@@ -37,3 +37,18 @@ jobs:
         run: |
           azion -t ${{ secrets.AZION_PERSONAL_TOKEN }}
           azion deploy --local --debug --auto --yes
+
+      - name: Commit Azion files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add azion/azion.json azion.config.* || true
+          # Commit only if there are staged changes
+          if git diff --cached --quiet; then
+            echo "No Azion changes to commit. Skipping push."
+          else
+            git commit -m "chore: update azion files"
+            # Rebase in case remote has new commits, then push
+            git pull --rebase origin main
+            git push
+          fi
