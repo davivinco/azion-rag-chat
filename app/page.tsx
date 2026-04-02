@@ -46,7 +46,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-6">
       <div className="w-full max-w-3xl bg-neutral-900 rounded-2xl shadow-xl p-6 border border-neutral-800">
-        <h1 className="text-3xl font-bold mb-2">Azion RAG Chat</h1>
+        <h1 className="text-3xl font-bold mb-2">Azion RAG Chat v2</h1>
         <p className="text-neutral-400 mb-6">
           Interface inicial do assistente com RAG
         </p>
