@@ -1,3 +1,4 @@
+import { generateAnswerWithContext } from "./llm";
 import { retrieveRelevantChunks } from "./retrieve";
 import { ChatAnswer } from "./types";
 
@@ -9,7 +10,7 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
   if (!hasRealChunks) {
     return {
       answer:
-        "Ainda não encontrei documentos ingeridos no store mockado. Faça uma ingestão primeiro no endpoint /api/ingest e depois tente perguntar novamente.",
+        "Ainda não encontrei documentos ingeridos no Edge SQL. Faça uma ingestão primeiro no endpoint /api/ingest e depois tente perguntar novamente.",
       chunks,
     };
   }
@@ -20,11 +21,25 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
     })
     .join("\n\n");
 
-  return {
-    answer:
-      `Resposta prévia com base nos chunks recuperados do Edge SQL.\n\n` +
-      `Pergunta: ${question}\n\n` +
-      `Contexto recuperado:\n${context}`,
-    chunks,
-  };
+  try {
+    const answer = await generateAnswerWithContext({
+      question,
+      context,
+    });
+
+    return {
+      answer,
+      chunks,
+    };
+  } catch (error) {
+    console.error("Falha ao gerar resposta com LLM. Usando resposta fallback:", error);
+
+    return {
+      answer:
+        `Resposta prévia com base nos chunks recuperados do Edge SQL.\n\n` +
+        `Pergunta: ${question}\n\n` +
+        `Contexto recuperado:\n${context}`,
+      chunks,
+    };
+  }
 }
