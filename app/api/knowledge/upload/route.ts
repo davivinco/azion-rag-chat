@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractTextFromKnowledgeFile } from "@/lib/rag/file-text";
+import {
+  extractTextFromKnowledgeFile,
+  isKnowledgeUploadFile,
+} from "@/lib/rag/file-text";
 import { splitTextIntoChunks } from "@/lib/rag/split";
 import { saveChunks, upsertDocument } from "@/lib/rag/store";
 import { generateEmbedding } from "@/lib/rag/embeddings";
@@ -12,11 +15,11 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file");
 
-    if (!(file instanceof File)) {
+    if (!isKnowledgeUploadFile(file)) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Arquivo não enviado.",
+          error: "Arquivo não enviado ou formato inválido.",
           expectedFormField: "file",
         },
         { status: 400 }
