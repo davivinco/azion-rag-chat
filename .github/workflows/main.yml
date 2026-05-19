@@ -28,6 +28,24 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
+      - name: Debug current version before deploy
+        run: |
+          echo "Commit atual:"
+          git rev-parse HEAD
+
+          echo "Branch/ref:"
+          echo "${GITHUB_REF}"
+          echo "${GITHUB_SHA}"
+
+          echo "Versão da home:"
+          grep -R "Azion RAG Chat" app/page.tsx || true
+
+          echo "Rotas API:"
+          find app/api -maxdepth 3 -type f -print
+
+          echo "Conteúdo ingest:"
+          cat app/api/ingest/route.ts || true
+
       - name: Install Azion CLI
         run: |
           curl -o azionlinux https://downloads.azion.com/linux/x86_64/azion
