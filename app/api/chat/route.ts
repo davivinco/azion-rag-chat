@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      mode: "mock-rag",
+      mode: "edge-sql-vector-rag",
       answer: result.answer,
       chunks: result.chunks,
     });
