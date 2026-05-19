@@ -1,66 +1,59 @@
-export const runtime = "edge";
+import { NextRequest, NextResponse } from "next/server";
+import { generateMockRagAnswer } from "@/lib/rag/answer";
 
-import { NextResponse } from "next/server";
-import {
-  insufficientContextResponse,
-  validateRetrievedContext,
-} from "@/lib/guardrails";
+type ChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
 
-export async function POST(request: Request) {
+type ChatRequestBody = {
+  messages?: ChatMessage[];
+  prompt?: string;
+};
+
+function getLastUserMessage(messages?: ChatMessage[], prompt?: string): string {
+  if (prompt && prompt.trim()) return prompt.trim();
+
+  if (!messages?.length) return "";
+
+  const lastUserMessage = [...messages]
+    .reverse()
+    .find((msg) => msg.role === "user");
+
+  return lastUserMessage?.content?.trim() ?? "";
+}
+
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const question = String(body?.message ?? "").trim();
+    const body = (await req.json()) as ChatRequestBody;
+    const userQuestion = getLastUserMessage(body.messages, body.prompt);
 
-    if (!question) {
+    if (!userQuestion) {
       return NextResponse.json(
-        { error: "Pergunta não informada." },
+        {
+          ok: false,
+          error: "Nenhuma pergunta foi enviada.",
+        },
         { status: 400 }
       );
     }
 
-    const isLocalDev = process.env.NODE_ENV === "development";
-
-    if (isLocalDev) {
-      return NextResponse.json({
-        answer:
-          "Ambiente local ativo. O retrieval com Azion SQL e Azion AI será validado no deploy da Azion.",
-        status: "LOCAL_DEV_BYPASS",
-        sources: [],
-      });
-    }
-
-    const { buildContext, retrieveRelevantChunks } = await import("@/lib/retrieval");
-
-    const docs = await retrieveRelevantChunks(question);
-    const guardrail = validateRetrievedContext(docs);
-
-    if (!guardrail.allowed) {
-      return NextResponse.json({
-        ...insufficientContextResponse(),
-        reason: guardrail.reason,
-      });
-    }
-
-    const context = buildContext(docs);
+    const result = await generateMockRagAnswer(userQuestion);
 
     return NextResponse.json({
-      answer: "Contexto recuperado com sucesso.",
-      status: "CONTEXT_FOUND",
-      reason: null,
-      context,
-      sources: docs.map((doc) => ({
-        file_name: doc.metadata?.file_name ?? null,
-        source_key: doc.metadata?.source_key ?? null,
-        page: doc.metadata?.page ?? null,
-        chunk_id: doc.metadata?.chunk_id ?? null,
-        score: doc.score ?? null,
-      })),
+      ok: true,
+      mode: "mock-rag",
+      answer: result.answer,
+      chunks: result.chunks,
     });
   } catch (error) {
+    console.error("Erro ao processar /api/chat:", error);
+
     return NextResponse.json(
       {
+        ok: false,
         error: "Erro ao processar a requisição.",
-        details: error instanceof Error ? error.message : String(error),
+        details: error instanceof Error ? error.message : "Erro desconhecido",
       },
       { status: 500 }
     );
