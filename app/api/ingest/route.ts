@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { splitTextIntoChunks } from "@/lib/rag/split";
-import { saveChunks } from "@/lib/rag/store";
+import { saveChunks, upsertDocument } from "@/lib/rag/store";
 import { generateEmbedding } from "@/lib/rag/embeddings";
 import { saveChunkEmbedding } from "@/lib/rag/vector-store";
 
@@ -37,6 +37,14 @@ export async function POST(req: NextRequest) {
       text,
       chunkSize: body.chunkSize,
       overlap: body.overlap,
+    });
+
+    await upsertDocument({
+      id: source,
+      filename: source,
+      contentType: "text/plain",
+      sizeBytes: new TextEncoder().encode(text).length,
+      status: "indexed",
     });
 
     const storeResult = await saveChunks(chunks);

@@ -24,10 +24,31 @@ type SaveChunksResult = {
   totalStored: number;
 };
 
+export type RagDocument = {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  status: string;
+  createdAt: string;
+  chunks: number;
+};
+
 const EDGE_SQL_API_BASE = "https://api.azion.com/v4/edge_sql/databases";
 
 function getEnv(name: string): string {
-  const value = process.env[name];
+  const azionGlobal = globalThis as typeof globalThis & {
+    Azion?: {
+      env?: {
+        get?: (key: string) => string | undefined;
+      };
+    };
+  };
+
+  const azionValue = azionGlobal.Azion?.env?.get?.(name);
+  const nodeValue = process.env[name];
+
+  const value = azionValue || nodeValue;
 
   if (!value) {
     throw new Error(`Variável de ambiente não configurada: ${name}`);
@@ -180,4 +201,71 @@ export async function searchChunks(question: string): Promise<RetrievedChunk[]> 
     .filter((chunk) => Number(chunk.score) > 0)
     .sort((a, b) => Number(b.score) - Number(a.score))
     .slice(0, 5);
+}
+
+export async function upsertDocument(params: {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  status?: string;
+}): Promise<void> {
+  const statement = `
+    INSERT OR REPLACE INTO rag_documents
+    (id, filename, content_type, size_bytes, status)
+    VALUES (
+      ${sqlString(params.id)},
+      ${sqlString(params.filename)},
+      ${sqlString(params.contentType)},
+      ${sqlNumber(params.sizeBytes)},
+      ${sqlString(params.status || "indexed")}
+    );
+  `;
+
+  await executeEdgeSql([statement]);
+}
+
+export async function listDocuments(): Promise<RagDocument[]> {
+  const result = await executeEdgeSql([
+    `
+    SELECT
+      d.id,
+      d.filename,
+      d.content_type,
+      d.size_bytes,
+      d.status,
+      d.created_at,
+      COUNT(c.id) AS chunks
+    FROM rag_documents d
+    LEFT JOIN rag_chunks c ON c.source = d.filename
+    GROUP BY d.id, d.filename, d.content_type, d.size_bytes, d.status, d.created_at
+    ORDER BY d.created_at DESC;
+    `,
+  ]);
+
+  const rows = result.data?.[0]?.results?.rows ?? [];
+
+  return rows.map((row) => ({
+    id: String(row[0]),
+    filename: String(row[1]),
+    contentType: String(row[2]),
+    sizeBytes: Number(row[3] ?? 0),
+    status: String(row[4]),
+    createdAt: String(row[5]),
+    chunks: Number(row[6] ?? 0),
+  }));
+}
+
+export async function deleteDocumentBySource(source: string): Promise<{
+  deletedSource: string;
+}> {
+  await executeEdgeSql([
+    `DELETE FROM rag_chunk_embeddings WHERE source = ${sqlString(source)};`,
+    `DELETE FROM rag_chunks WHERE source = ${sqlString(source)};`,
+    `DELETE FROM rag_documents WHERE filename = ${sqlString(source)};`,
+  ]);
+
+  return {
+    deletedSource: source,
+  };
 }
