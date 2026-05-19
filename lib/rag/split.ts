@@ -8,7 +8,32 @@ type SplitTextParams = {
 };
 
 function sanitizeText(text: string): string {
-  return text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  return text
+    .replace(/\r/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findSafeEnd(text: string, start: number, maxEnd: number): number {
+  if (maxEnd >= text.length) return text.length;
+
+  const slice = text.slice(start, maxEnd);
+  const lastSpace = slice.lastIndexOf(" ");
+
+  if (lastSpace <= 0) return maxEnd;
+
+  return start + lastSpace;
+}
+
+function findSafeStart(text: string, desiredStart: number): number {
+  if (desiredStart <= 0) return 0;
+
+  const nextSpace = text.indexOf(" ", desiredStart);
+
+  if (nextSpace === -1) return desiredStart;
+
+  return nextSpace + 1;
 }
 
 export function splitTextIntoChunks({
@@ -26,7 +51,8 @@ export function splitTextIntoChunks({
   let chunkIndex = 0;
 
   while (start < normalized.length) {
-    const end = Math.min(start + chunkSize, normalized.length);
+    const maxEnd = Math.min(start + chunkSize, normalized.length);
+    const end = findSafeEnd(normalized, start, maxEnd);
     const content = normalized.slice(start, end).trim();
 
     if (content) {
@@ -40,7 +66,8 @@ export function splitTextIntoChunks({
 
     if (end >= normalized.length) break;
 
-    start = Math.max(end - overlap, start + 1);
+    const nextStart = Math.max(end - overlap, start + 1);
+    start = findSafeStart(normalized, nextStart);
     chunkIndex += 1;
   }
 
