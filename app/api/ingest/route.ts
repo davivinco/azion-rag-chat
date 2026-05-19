@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { splitTextIntoChunks } from "@/lib/rag/split";
 import { saveChunks } from "@/lib/rag/store";
+import { generateEmbedding } from "@/lib/rag/embeddings";
+import { saveChunkEmbedding } from "@/lib/rag/vector-store";
 
 export const runtime = "edge";
 
@@ -9,6 +11,7 @@ type IngestRequestBody = {
   text?: string;
   chunkSize?: number;
   overlap?: number;
+  generateEmbeddings?: boolean;
 };
 
 export async function POST(req: NextRequest) {
@@ -17,16 +20,13 @@ export async function POST(req: NextRequest) {
 
     const source = body.source?.trim() || "manual-input";
     const text = body.text?.trim();
+    const shouldGenerateEmbeddings = body.generateEmbeddings !== false;
 
     if (!text) {
       return NextResponse.json(
         {
           ok: false,
           error: "Texto não informado.",
-          expectedPayloadExample: {
-            source: "documento-teste.txt",
-            text: "Conteúdo do documento para ingestão.",
-          },
         },
         { status: 400 }
       );
@@ -41,13 +41,24 @@ export async function POST(req: NextRequest) {
 
     const storeResult = await saveChunks(chunks);
 
+    let savedEmbeddings = 0;
+
+    if (shouldGenerateEmbeddings) {
+      for (const chunk of chunks) {
+        const embedding = await generateEmbedding(chunk.content);
+        await saveChunkEmbedding(chunk, embedding);
+        savedEmbeddings += 1;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
-      mode: "edge-sql-ingest",
+      mode: "edge-sql-vector-ingest",
       source,
       totalChunks: chunks.length,
       savedChunks: storeResult.saved,
       totalStoredChunks: storeResult.totalStored,
+      savedEmbeddings,
       chunks,
     });
   } catch (error) {
