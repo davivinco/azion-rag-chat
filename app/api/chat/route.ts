@@ -7,16 +7,21 @@ type ChatMessage = {
 };
 
 type ChatRequestBody = {
-  messages?: ChatMessage[];
+  message?: string;
   prompt?: string;
+  question?: string;
+  pergunta?: string;
+  messages?: ChatMessage[];
 };
 
-function getLastUserMessage(messages?: ChatMessage[], prompt?: string): string {
-  if (prompt && prompt.trim()) return prompt.trim();
+function getUserQuestion(body: ChatRequestBody): string {
+  if (body.message?.trim()) return body.message.trim();
+  if (body.prompt?.trim()) return body.prompt.trim();
+  if (body.question?.trim()) return body.question.trim();
+  if (body.pergunta?.trim()) return body.pergunta.trim();
 
-  if (!messages?.length) return "";
-
-  const lastUserMessage = [...messages]
+  const lastUserMessage = body.messages
+    ?.slice()
     .reverse()
     .find((msg) => msg.role === "user");
 
@@ -26,13 +31,14 @@ function getLastUserMessage(messages?: ChatMessage[], prompt?: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as ChatRequestBody;
-    const userQuestion = getLastUserMessage(body.messages, body.prompt);
+    const userQuestion = getUserQuestion(body);
 
     if (!userQuestion) {
       return NextResponse.json(
         {
           ok: false,
-          error: "Nenhuma pergunta foi enviada.",
+          error: "Pergunta não informada.",
+          acceptedFields: ["message", "prompt", "question", "pergunta", "messages"],
         },
         { status: 400 }
       );
