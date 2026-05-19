@@ -22,7 +22,7 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
 
   return {
     answer:
-      `Resposta simulada com base nos documentos ingeridos.\n\n` +
+      `Resposta prévia com base nos chunks recuperados do Edge SQL.\n\n` +
       `Pergunta: ${question}\n\n` +
       `Contexto recuperado:\n${context}`,
     chunks,

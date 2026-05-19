@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      mode: "mock-ingest-memory-store",
+      mode: "edge-sql-ingest",
       source,
       totalChunks: chunks.length,
       savedChunks: storeResult.saved,
