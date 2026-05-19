@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       mode: "edge-sql-vector-rag",
       answer: result.answer,
+      sources: result.sources,
       chunks: result.chunks,
     });
   } catch (error) {

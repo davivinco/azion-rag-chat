@@ -10,7 +10,14 @@ export type RetrievedChunk = RagDocumentChunk & {
   score?: number;
 };
 
+export type RagSource = {
+  source: string;
+  chunkIndex: number;
+  score?: number;
+};
+
 export type ChatAnswer = {
   answer: string;
   chunks?: RetrievedChunk[];
+  sources?: RagSource[];
 };
