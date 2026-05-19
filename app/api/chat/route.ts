@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateMockRagAnswer } from "@/lib/rag/answer";
 
+export const runtime = "edge";
+
 type ChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
