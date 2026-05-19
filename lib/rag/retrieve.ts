@@ -6,7 +6,7 @@ import { RetrievedChunk } from "./types";
 export async function retrieveRelevantChunks(question: string): Promise<RetrievedChunk[]> {
   try {
     const questionEmbedding = await generateEmbedding(question);
-    const vectorChunks = await searchSimilarChunksByEmbedding(questionEmbedding, 5);
+    const vectorChunks = await searchSimilarChunksByEmbedding(questionEmbedding, 5, 0.6);
 
     if (vectorChunks.length > 0) {
       return vectorChunks;

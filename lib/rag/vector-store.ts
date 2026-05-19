@@ -102,7 +102,8 @@ export async function saveChunkEmbedding(
 
 export async function searchSimilarChunksByEmbedding(
   embedding: number[],
-  limit = 5
+  limit = 5,
+  minScore = 0.6
 ): Promise<RetrievedChunk[]> {
   const statement = `
     SELECT
@@ -120,28 +121,33 @@ export async function searchSimilarChunksByEmbedding(
   const result = await executeEdgeSql([statement]);
   const rows = result.data?.[0]?.results?.rows ?? [];
 
-  return rows.map((row) => {
-    const [id, source, chunkIndex, content, metadata, distance] = row;
+  return rows
+    .map((row) => {
+      const [id, source, chunkIndex, content, metadata, distance] = row;
 
-    let parsedMetadata: RetrievedChunk["metadata"] = {};
+      let parsedMetadata: RetrievedChunk["metadata"] = {};
 
-    if (typeof metadata === "string" && metadata.trim()) {
-      try {
-        parsedMetadata = JSON.parse(metadata);
-      } catch {
-        parsedMetadata = {
-          rawMetadata: metadata,
-        };
+      if (typeof metadata === "string" && metadata.trim()) {
+        try {
+          parsedMetadata = JSON.parse(metadata);
+        } catch {
+          parsedMetadata = {
+            rawMetadata: metadata,
+          };
+        }
       }
-    }
 
-    return {
-      id: String(id),
-      source: String(source),
-      chunkIndex: Number(chunkIndex),
-      content: String(content),
-      metadata: parsedMetadata,
-      score: 1 - Number(distance ?? 1),
-    };
-  });
+      const score = 1 - Number(distance ?? 1);
+
+      return {
+        id: String(id),
+        source: String(source),
+        chunkIndex: Number(chunkIndex),
+        content: String(content),
+        metadata: parsedMetadata,
+        score,
+      };
+    })
+    .filter((chunk) => Number(chunk.score) >= minScore)
+    .sort((a, b) => Number(b.score) - Number(a.score));
 }
