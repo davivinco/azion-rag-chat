@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { splitTextIntoChunks } from "@/lib/rag/split";
+import { saveChunks } from "@/lib/rag/store";
+
+export const runtime = "edge";
 
 type IngestRequestBody = {
   source?: string;
@@ -36,11 +39,15 @@ export async function POST(req: NextRequest) {
       overlap: body.overlap,
     });
 
+    const storeResult = await saveChunks(chunks);
+
     return NextResponse.json({
       ok: true,
-      mode: "mock-ingest",
+      mode: "mock-ingest-memory-store",
       source,
       totalChunks: chunks.length,
+      savedChunks: storeResult.saved,
+      totalStoredChunks: storeResult.totalStored,
       chunks,
     });
   } catch (error) {
