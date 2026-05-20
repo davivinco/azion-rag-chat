@@ -105,6 +105,13 @@ export default function HomePage() {
             <p className="text-sm text-neutral-400">
               Assistente RAG com embeddings, busca vetorial no Edge SQL e resposta via AI Inference.
             </p>
+
+            <a
+              href="/knowledge"
+              className="mt-3 inline-flex w-fit rounded-xl border border-neutral-700 px-4 py-2 text-sm text-neutral-200 transition hover:bg-neutral-800"
+            >
+              Gerenciar base de conhecimento
+            </a>
           </div>
 
           <div className="flex flex-col gap-4">
