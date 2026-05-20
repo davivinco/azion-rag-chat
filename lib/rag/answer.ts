@@ -3,22 +3,33 @@ import { retrieveRelevantChunks } from "./retrieve";
 import { ChatAnswer, RagSource, RetrievedChunk } from "./types";
 
 function buildSources(chunks: RetrievedChunk[]): RagSource[] {
-  const seen = new Set<string>();
+  const bestSourceByDocument = new Map<string, RagSource>();
 
-  return chunks
-    .map((chunk) => ({
+  for (const chunk of chunks) {
+    const current = bestSourceByDocument.get(chunk.source);
+
+    const nextSource: RagSource = {
       source: chunk.source,
       chunkIndex: chunk.chunkIndex,
       score: chunk.score,
-    }))
-    .filter((source) => {
-      const key = `${source.source}-${source.chunkIndex}`;
+    };
 
-      if (seen.has(key)) return false;
+    if (!current) {
+      bestSourceByDocument.set(chunk.source, nextSource);
+      continue;
+    }
 
-      seen.add(key);
-      return true;
-    });
+    const currentScore = current.score ?? 0;
+    const nextScore = nextSource.score ?? 0;
+
+    if (nextScore > currentScore) {
+      bestSourceByDocument.set(chunk.source, nextSource);
+    }
+  }
+
+  return Array.from(bestSourceByDocument.values()).sort(
+    (a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)
+  );
 }
 
 export async function generateMockRagAnswer(question: string): Promise<ChatAnswer> {
