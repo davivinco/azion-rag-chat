@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
     const chunks = splitTextIntoChunks({
       source: extracted.filename,
       text: extracted.text,
-      chunkSize: 1200,
-      overlap: 180,
+      chunkSize: 800,
+      overlap: 120,
     });
 
     await upsertDocument({

@@ -2,6 +2,17 @@ import { generateAnswerWithContext } from "./llm";
 import { retrieveRelevantChunks } from "./retrieve";
 import { ChatAnswer, RagSource, RetrievedChunk } from "./types";
 
+const MAX_CONTEXT_CHARS_PER_CHUNK = 900;
+const MAX_DISPLAY_CHARS_PER_CHUNK = 650;
+
+function truncateText(text: string, maxChars: number): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= maxChars) return normalized;
+
+  return `${normalized.slice(0, maxChars).trim()}...`;
+}
+
 function buildSources(chunks: RetrievedChunk[]): RagSource[] {
   const bestSourceByDocument = new Map<string, RagSource>();
 
@@ -32,6 +43,30 @@ function buildSources(chunks: RetrievedChunk[]): RagSource[] {
   );
 }
 
+function buildContext(chunks: RetrievedChunk[]): string {
+  return chunks
+    .map((chunk, index) => {
+      const content = truncateText(chunk.content, MAX_CONTEXT_CHARS_PER_CHUNK);
+
+      return [
+        `Trecho ${index + 1}`,
+        `Fonte: ${chunk.source}`,
+        `Chunk: ${chunk.chunkIndex}`,
+        `Score: ${typeof chunk.score === "number" ? chunk.score.toFixed(4) : "n/a"}`,
+        "",
+        content,
+      ].join("\n");
+    })
+    .join("\n\n---\n\n");
+}
+
+function buildDisplayChunks(chunks: RetrievedChunk[]): RetrievedChunk[] {
+  return chunks.map((chunk) => ({
+    ...chunk,
+    content: truncateText(chunk.content, MAX_DISPLAY_CHARS_PER_CHUNK),
+  }));
+}
+
 export async function generateMockRagAnswer(question: string): Promise<ChatAnswer> {
   const chunks = await retrieveRelevantChunks(question);
 
@@ -46,13 +81,9 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
     };
   }
 
-  const context = chunks
-    .map((chunk, index) => {
-      return `Trecho ${index + 1} - Fonte: ${chunk.source} - Chunk: ${chunk.chunkIndex}\n${chunk.content}`;
-    })
-    .join("\n\n");
-
+  const context = buildContext(chunks);
   const sources = buildSources(chunks);
+  const displayChunks = buildDisplayChunks(chunks);
 
   try {
     const answer = await generateAnswerWithContext({
@@ -62,7 +93,7 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
 
     return {
       answer,
-      chunks,
+      chunks: displayChunks,
       sources,
     };
   } catch (error) {
@@ -73,7 +104,7 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
         `Resposta prévia com base nos chunks recuperados do Edge SQL.\n\n` +
         `Pergunta: ${question}\n\n` +
         `Contexto recuperado:\n${context}`,
-      chunks,
+      chunks: displayChunks,
       sources,
     };
   }

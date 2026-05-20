@@ -68,7 +68,7 @@ export async function generateAnswerWithContext(params: {
     body: JSON.stringify({
       model,
       stream: false,
-      max_tokens: 700,
+      max_tokens: 1200,
       temperature: 0.2,
       messages: [
         {
