@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type RagSource = {
   source: string;
@@ -223,9 +225,67 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="rounded-2xl border border-neutral-800 bg-black p-5">
-                  <div className="whitespace-pre-wrap text-sm leading-7 text-neutral-100 md:text-base">
-                    {answer || "A resposta aparecerá aqui após a consulta."}
-                  </div>
+                  {answer ? (
+                    <div className="text-sm leading-7 text-neutral-100 md:text-base">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="mb-4 text-2xl font-bold text-white">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="mb-3 mt-5 text-xl font-bold text-white">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="mb-2 mt-4 text-lg font-semibold text-white">{children}</h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="mb-4 text-neutral-100">{children}</p>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-bold text-white">{children}</strong>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="mb-4 ml-5 list-disc space-y-2 text-neutral-100">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="mb-4 ml-5 list-decimal space-y-3 text-neutral-100">{children}</ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="pl-1 text-neutral-100">{children}</li>
+                          ),
+                          code: ({ children }) => (
+                            <code className="rounded-md bg-neutral-900 px-1.5 py-0.5 text-orange-300">
+                              {children}
+                            </code>
+                          ),
+                          table: ({ children }) => (
+                            <div className="mb-4 overflow-x-auto rounded-xl border border-neutral-800">
+                              <table className="w-full border-collapse text-left text-sm">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="border-b border-neutral-800 bg-neutral-900 px-3 py-2 font-semibold text-white">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="border-b border-neutral-900 px-3 py-2 text-neutral-200">
+                              {children}
+                            </td>
+                          ),
+                        }}
+                      >
+                        {answer}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="text-sm leading-7 text-neutral-500 md:text-base">
+                      A resposta aparecerá aqui após a consulta.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
