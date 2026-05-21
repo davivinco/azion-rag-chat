@@ -185,13 +185,6 @@ module.exports = {
       infrastructure: 1,
       domains: ['ai.vinco.dev.br'],
       workloadDomainAllowAccess: true,
-      protocols: {
-        http: {
-          versions: ['http1', 'http2'],
-          httpPorts: [80],
-          httpsPorts: [443]
-        }
-      },
       tls: {
         certificate: workloadCertificateId,
         minimumVersion: 'tls_1_2'
