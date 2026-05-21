@@ -18,8 +18,8 @@ type ChatRequestBody = {
   message?: string;
 };
 
-const MAX_CONTEXT_CHARS_PER_CHUNK = 900;
-const MAX_DISPLAY_CHARS_PER_CHUNK = 650;
+const MAX_CONTEXT_CHARS_PER_CHUNK = 1200;
+const MAX_DISPLAY_CHARS_PER_CHUNK = 700;
 
 function getEnv(name: string): string {
   const azionGlobal = globalThis as typeof globalThis & {
@@ -137,14 +137,28 @@ function buildMessages(question: string, context: string | null): ChatMessage[] 
       {
         role: "system",
         content:
-          "Você é um assistente RAG útil, objetivo e confiável. Responda somente com base no contexto fornecido. Se o contexto não tiver informação suficiente, diga isso claramente.",
+          "Você é um especialista técnico em cloud, edge computing, RAG, bancos vetoriais e documentação técnica. " +
+          "Sua função é responder com alta precisão usando SOMENTE o contexto recuperado da base de conhecimento. " +
+          "Não seja genérico. Extraia diferenças, valores, nomes, limites, componentes, fluxos e detalhes concretos do contexto. " +
+          "Quando a pergunta pedir comparação, responda preferencialmente com tabela em Markdown e depois um resumo objetivo. " +
+          "Quando houver números, preços, regiões, limites ou nomes técnicos no contexto, preserve esses dados. " +
+          "Se o contexto não trouxer informação suficiente, diga claramente o que não foi encontrado. " +
+          "Não invente fontes, números ou capacidades que não estejam no contexto. " +
+          "Responda em português do Brasil, com linguagem profissional, direta e útil para apresentação a cliente.",
       },
       {
         role: "user",
         content:
           `Pergunta:\n${question}\n\n` +
           `Contexto recuperado:\n${context}\n\n` +
-          "Responda em português do Brasil, de forma objetiva. Use Markdown quando fizer sentido.",
+          "Instruções de resposta:\n" +
+          "- Responda diretamente a pergunta.\n" +
+          "- Use Markdown bem formatado.\n" +
+          "- Use tabela quando houver comparação.\n" +
+          "- Destaque pontos importantes em negrito.\n" +
+          "- Não inclua introduções longas.\n" +
+          "- Não diga que é uma IA.\n" +
+          "- Não mencione chunks, embeddings ou retrieval, exceto se a pergunta for sobre o funcionamento do RAG.",
       },
     ];
   }
@@ -159,7 +173,7 @@ function buildMessages(question: string, context: string | null): ChatMessage[] 
       role: "user",
       content:
         `Pergunta:\n${question}\n\n` +
-        "Responda em português do Brasil, de forma objetiva. Use Markdown quando fizer sentido.",
+        "Responda de forma objetiva, prática e bem estruturada.",
     },
   ];
 }
@@ -189,8 +203,9 @@ async function callStreamingModel(messages: ChatMessage[]) {
     body: JSON.stringify({
       model,
       stream: true,
-      max_tokens: 1200,
-      temperature: 0.2,
+      max_tokens: 1800,
+      temperature: 0.15,
+      top_p: 0.9,
       messages,
     }),
   });

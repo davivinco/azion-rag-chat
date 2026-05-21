@@ -2,8 +2,8 @@ import { generateAnswerWithContext, generateGeneralAnswer } from "./llm";
 import { retrieveRelevantChunks } from "./retrieve";
 import { ChatAnswer, RagSource, RetrievedChunk } from "./types";
 
-const MAX_CONTEXT_CHARS_PER_CHUNK = 900;
-const MAX_DISPLAY_CHARS_PER_CHUNK = 650;
+const MAX_CONTEXT_CHARS_PER_CHUNK = 1200;
+const MAX_DISPLAY_CHARS_PER_CHUNK = 700;
 
 function truncateText(text: string, maxChars: number): string {
   const normalized = text.replace(/\s+/g, " ").trim();

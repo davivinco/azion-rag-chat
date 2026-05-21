@@ -2,8 +2,8 @@ import { generateEmbedding } from "./embeddings";
 import { searchSimilarChunksByEmbedding } from "./vector-store";
 import { RetrievedChunk } from "./types";
 
-const VECTOR_TOP_K = 3;
-const MIN_VECTOR_SCORE = 0.7;
+const VECTOR_TOP_K = 4;
+const MIN_VECTOR_SCORE = 0.68;
 
 export async function retrieveRelevantChunks(question: string): Promise<RetrievedChunk[]> {
   try {
