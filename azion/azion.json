@@ -56,5 +56,16 @@
       "id": 13239,
       "name": "azion-rag-chat-20260401234459"
     }
-  ]
+  ],
+  "workloads": {
+    "id": 1775082718,
+    "name": "azion-rag-chat-20260401234459",
+    "url": "https://kkcutuewg8u.map.azionedge.net",
+    "deployment_id": [
+      {
+        "id": 190620,
+        "name": "azion-rag-chat-20260401234459"
+      }
+    ]
+  }
 }
