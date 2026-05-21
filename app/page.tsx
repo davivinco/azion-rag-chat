@@ -54,10 +54,155 @@ function formatScore(score?: number) {
   return `${(score * 100).toFixed(1)}%`;
 }
 
+function normalizeMarkdown(content: string) {
+  const headingMap = new Map([
+    ["visão geral", "## Visão geral"],
+    ["visao geral", "## Visão geral"],
+    ["componentes principais", "## Componentes principais"],
+    ["fluxo de funcionamento", "## Fluxo de funcionamento"],
+    ["fluxo de implementação", "## Fluxo de implementação"],
+    ["resumo prático", "## Resumo prático"],
+    ["resumo pratico", "## Resumo prático"],
+    ["ai inference", "## AI Inference"],
+    ["edge sql", "## Edge SQL"],
+    ["modelos utilizados", "### Modelos utilizados"],
+    ["funções", "### Funções"],
+    ["funcoes", "### Funções"],
+    ["armazenamento", "### Armazenamento"],
+    ["busca vetorial", "### Busca vetorial"],
+  ]);
+
+  const lines = content.split("\n");
+
+  const normalizedLines = lines.map((line) => {
+    const trimmed = line.trim();
+    const key = trimmed.replace(/:$/, "").toLowerCase();
+
+    if (!trimmed) return "";
+
+    if (
+      trimmed.startsWith("#") ||
+      trimmed.startsWith("- ") ||
+      trimmed.startsWith("* ") ||
+      trimmed.startsWith(">") ||
+      trimmed.startsWith("|") ||
+      /^\d+\./.test(trimmed)
+    ) {
+      return line;
+    }
+
+    const heading = headingMap.get(key);
+
+    if (heading) {
+      return heading;
+    }
+
+    return line;
+  });
+
+  let normalized = normalizedLines.join("\n");
+
+  // Corrige tabelas que às vezes chegam sem separador Markdown.
+  normalized = normalized.replace(
+    /\|\s*Componente\s*\|\s*Função\s*\|\n(?!\|\s*---)/gi,
+    "| Componente | Função |\n|---|---|\n"
+  );
+
+  normalized = normalized.replace(
+    /\|\s*Item\s*\|\s*Descrição\s*\|\n(?!\|\s*---)/gi,
+    "| Item | Descrição |\n|---|---|\n"
+  );
+
+  normalized = normalized.replace(
+    /\|\s*Etapa\s*\|\s*Descrição\s*\|\n(?!\|\s*---)/gi,
+    "| Etapa | Descrição |\n|---|---|\n"
+  );
+
+  // Transforma listas soltas simples em bullets quando aparecem abaixo de subtítulos comuns.
+  normalized = normalized.replace(
+    /(### Armazenamento\n)(Documentos\nTextos\nMetadados)/gi,
+    "$1- Documentos\n- Textos\n- Metadados"
+  );
+
+  // Garante espaçamento antes de títulos.
+  normalized = normalized.replace(/\n(#{2,3}\s)/g, "\n\n$1");
+
+  return normalized.trim();
+}
+
 function MarkdownContent({ content }: { content: string }) {
+  const normalizedContent = normalizeMarkdown(content);
+
   return (
-    <div className="prose prose-invert max-w-none prose-headings:mb-3 prose-headings:mt-6 prose-h2:text-xl prose-h2:text-white prose-h3:text-lg prose-p:mb-4 prose-p:leading-7 prose-p:text-neutral-100 prose-li:my-1 prose-li:text-neutral-100 prose-ul:my-4 prose-ol:my-4 prose-strong:text-white prose-strong:font-bold prose-code:text-orange-300 prose-code:bg-neutral-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-pre:bg-black prose-pre:border prose-pre:border-neutral-800 prose-pre:rounded-xl prose-table:text-sm prose-th:border-neutral-800 prose-td:border-neutral-800 prose-thead:border-neutral-800 prose-th:bg-neutral-900 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    <div className="max-w-none text-neutral-100">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h2: ({ children }) => (
+            <h2 className="mb-3 mt-7 border-b border-neutral-800 pb-2 text-xl font-bold text-white">
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="mb-2 mt-5 text-base font-semibold text-orange-300">
+              {children}
+            </h3>
+          ),
+          p: ({ children }) => (
+            <p className="mb-4 text-sm leading-7 text-neutral-100">
+              {children}
+            </p>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-bold text-white">{children}</strong>
+          ),
+          ul: ({ children }) => (
+            <ul className="mb-5 ml-5 list-disc space-y-2 text-sm leading-7 text-neutral-100">
+              {children}
+            </ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="mb-5 ml-5 list-decimal space-y-2 text-sm leading-7 text-neutral-100">
+              {children}
+            </ol>
+          ),
+          li: ({ children }) => (
+            <li className="pl-1 text-neutral-100">{children}</li>
+          ),
+          code: ({ children }) => (
+            <code className="rounded-md bg-neutral-900 px-1.5 py-0.5 text-orange-300">
+              {children}
+            </code>
+          ),
+          pre: ({ children }) => (
+            <pre className="mb-5 overflow-x-auto rounded-2xl border border-neutral-800 bg-black p-4 text-sm text-neutral-100">
+              {children}
+            </pre>
+          ),
+          table: ({ children }) => (
+            <div className="my-5 overflow-hidden rounded-2xl border border-neutral-800 bg-black">
+              <table className="w-full border-collapse text-left text-sm">
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="bg-neutral-900 text-white">{children}</thead>
+          ),
+          th: ({ children }) => (
+            <th className="border-b border-neutral-800 px-4 py-3 text-sm font-bold text-white">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border-b border-neutral-900 px-4 py-3 align-top text-sm leading-6 text-neutral-200">
+              {children}
+            </td>
+          ),
+        }}
+      >
+        {normalizedContent}
+      </ReactMarkdown>
     </div>
   );
 }
