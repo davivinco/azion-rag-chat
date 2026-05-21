@@ -10,6 +10,8 @@ import { saveChunkEmbedding } from "@/lib/rag/vector-store";
 
 export const runtime = "edge";
 
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -23,6 +25,18 @@ export async function POST(req: NextRequest) {
           expectedFormField: "file",
         },
         { status: 400 }
+      );
+    }
+
+    if ((file.size || 0) > MAX_UPLOAD_SIZE_BYTES) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Arquivo excede o tamanho máximo permitido.",
+          details: "O limite atual para upload é de 5 MB.",
+          maxSizeBytes: MAX_UPLOAD_SIZE_BYTES,
+        },
+        { status: 413 }
       );
     }
 

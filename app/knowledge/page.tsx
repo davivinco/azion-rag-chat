@@ -40,6 +40,44 @@ type DeleteResponse = {
   error?: string;
   details?: string;
 };
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+
+async function extractPdfTextInBrowser(file: File): Promise<string> {
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const arrayBuffer = await file.arrayBuffer();
+
+  const loadingTask = (pdfjsLib as any).getDocument({
+    data: new Uint8Array(arrayBuffer),
+    disableWorker: true,
+  });
+
+  const pdf = await loadingTask.promise;
+  const pages: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+
+    const pageText = (textContent.items as Array<{ str?: string }>)
+      .map((item) => item.str || "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (pageText) {
+      pages.push(pageText);
+    }
+  }
+
+  const text = pages.join("\n\n").trim();
+
+  if (!text) {
+    throw new Error("Não foi possível extrair texto do PDF. O arquivo pode estar escaneado ou sem texto selecionável.");
+  }
+
+  return text;
+}
+
 
 export default function KnowledgePage() {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
@@ -89,11 +127,55 @@ export default function KnowledgePage() {
       return;
     }
 
+    if (selectedFile.size > MAX_UPLOAD_SIZE_BYTES) {
+      setError("Arquivo excede o limite máximo de 5 MB.");
+      return;
+    }
+
     setUploading(true);
     setMessage("");
     setError("");
 
     try {
+      const isPdf = selectedFile.name.toLowerCase().endsWith(".pdf");
+
+      if (isPdf) {
+        const text = await extractPdfTextInBrowser(selectedFile);
+
+        const response = await fetch("/api/ingest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            source: selectedFile.name,
+            text,
+            contentType: selectedFile.type || "application/pdf",
+            chunkSize: 800,
+            overlap: 120,
+            generateEmbeddings: true,
+          }),
+        });
+
+        const data = (await response.json()) as UploadResponse;
+
+        if (!response.ok || !data.ok) {
+          setError(data.details || data.error || "Erro ao processar PDF.");
+          return;
+        }
+
+        setMessage(
+          `PDF indexado: ${selectedFile.name} · chunks: ${data.totalChunks} · embeddings: ${data.savedEmbeddings}`
+        );
+        setSelectedFile(null);
+
+        const input = document.getElementById("knowledge-file") as HTMLInputElement | null;
+        if (input) input.value = "";
+
+        await loadDocuments();
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", selectedFile);
 
@@ -199,7 +281,7 @@ export default function KnowledgePage() {
               <input
                 id="knowledge-file"
                 type="file"
-                accept=".txt,.md,.html,.htm,text/plain,text/markdown,text/html"
+                accept=".txt,.md,.html,.htm,.pdf,text/plain,text/markdown,text/html,application/pdf"
                 onChange={handleFileChange}
                 className="w-full rounded-xl border border-neutral-700 bg-neutral-900 p-3 text-sm text-neutral-300 file:mr-4 file:rounded-lg file:border-0 file:bg-orange-500 file:px-3 file:py-2 file:font-medium file:text-black"
               />
@@ -215,7 +297,7 @@ export default function KnowledgePage() {
             </div>
 
             <p className="mt-3 text-xs text-neutral-500">
-              Formatos suportados agora: .txt, .md, .html e .htm.
+              Formatos suportados agora: .txt, .md, .html, .htm e .pdf até 5 MB.
             </p>
           </div>
 

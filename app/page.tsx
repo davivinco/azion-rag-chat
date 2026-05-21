@@ -225,6 +225,37 @@ export default function HomePage() {
       const decoder = new TextDecoder();
 
       let buffer = "";
+      let pendingDelta = "";
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+      function flushPendingDelta() {
+        if (!pendingDelta) return;
+
+        const deltaToAppend = pendingDelta;
+        pendingDelta = "";
+
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId
+              ? {
+                  ...message,
+                  content: `${message.content}${deltaToAppend}`,
+                }
+              : message
+          )
+        );
+      }
+
+      function queueDelta(delta: string) {
+        pendingDelta += delta;
+
+        if (flushTimer) return;
+
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          flushPendingDelta();
+        }, 45);
+      }
 
       function applyEvent(eventName: string, dataText: string) {
         if (!dataText.trim()) return;
@@ -249,17 +280,7 @@ export default function HomePage() {
 
         if (eventName === "delta") {
           const delta = data.content || "";
-
-          setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? {
-                    ...message,
-                    content: `${message.content}${delta}`,
-                  }
-                : message
-            )
-          );
+          queueDelta(delta);
           return;
         }
 
@@ -318,6 +339,13 @@ export default function HomePage() {
       if (buffer.trim()) {
         processRawEvent(buffer);
       }
+
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+
+      flushPendingDelta();
     } catch (error) {
       console.error("Erro ao chamar a API:", error);
 

@@ -6,9 +6,12 @@ import { saveChunkEmbedding } from "@/lib/rag/vector-store";
 
 export const runtime = "edge";
 
+const MAX_INGEST_SIZE_BYTES = 5 * 1024 * 1024;
+
 type IngestRequestBody = {
   source?: string;
   text?: string;
+  contentType?: string;
   chunkSize?: number;
   overlap?: number;
   generateEmbeddings?: boolean;
@@ -32,6 +35,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const sizeBytes = new TextEncoder().encode(text).length;
+
+    if (sizeBytes > MAX_INGEST_SIZE_BYTES) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Payload excede o tamanho máximo permitido.",
+          details: "O limite atual para ingestão é de 5 MB.",
+          maxSizeBytes: MAX_INGEST_SIZE_BYTES,
+          receivedSizeBytes: sizeBytes,
+        },
+        { status: 413 }
+      );
+    }
+
     const chunks = splitTextIntoChunks({
       source,
       text,
@@ -42,8 +60,8 @@ export async function POST(req: NextRequest) {
     await upsertDocument({
       id: source,
       filename: source,
-      contentType: "text/plain",
-      sizeBytes: new TextEncoder().encode(text).length,
+      contentType: body.contentType?.trim() || "text/plain",
+      sizeBytes,
       status: "indexed",
     });
 
