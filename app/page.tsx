@@ -40,10 +40,12 @@ type ChatMessage = {
 };
 
 const exampleQuestions = [
-  "Quais formatos a base de conhecimento suporta no upload?",
-  "Qual a diferença entre cloudlets standard e cloudlets premium?",
-  "Qual CNAME foi informado como origem correta da aplicação da Ri Happy?",
-  "Explique como funciona o RAG nesta aplicação.",
+  "Como essa aplicação usa AI Inference e Edge SQL para implementar RAG?",
+  "Explique o fluxo de ingestão, embeddings e busca vetorial nesta solução.",
+  "Quais componentes da Azion permitem que essa aplicação rode na Edge?",
+  "Como a ferramenta decide quando responder com RAG e quando responder como LLM geral?",
+  "Quais formatos são suportados no upload da base de conhecimento?",
+  "Como o Edge SQL é usado para armazenar documentos, chunks e embeddings?",
 ];
 
 function formatScore(score?: number) {
