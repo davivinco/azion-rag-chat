@@ -183,12 +183,22 @@ export default function HomePage() {
       content: currentQuestion,
     };
 
-    setMessages((current) => [...current, userMessage]);
+    const assistantId = crypto.randomUUID();
+
+    const assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      sources: [],
+      chunks: [],
+    };
+
+    setMessages((current) => [...current, userMessage, assistantMessage]);
     setQuestion("");
     setLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -196,46 +206,132 @@ export default function HomePage() {
         body: JSON.stringify({ prompt: currentQuestion }),
       });
 
-      const data = (await response.json()) as ChatResponse;
-
-      if (!response.ok || data.ok === false) {
-        setMessages((current) => [
-          ...current,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            error: true,
-            content: data?.details
-              ? `${data?.error ?? "Erro"}\n\nDetalhes: ${data.details}`
-              : data?.error ?? "Erro ao processar a solicitação.",
-          },
-        ]);
+      if (!response.body) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId
+              ? {
+                  ...message,
+                  error: true,
+                  content: "Resposta sem corpo de streaming.",
+                }
+              : message
+          )
+        );
         return;
       }
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: data.answer ?? "Sem resposta.",
-          mode: data.mode,
-          sources: data.sources ?? [],
-          chunks: data.chunks ?? [],
-        },
-      ]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+
+      function applyEvent(eventName: string, dataText: string) {
+        if (!dataText.trim()) return;
+
+        const data = JSON.parse(dataText);
+
+        if (eventName === "meta") {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    mode: data.mode,
+                    sources: data.sources || [],
+                    chunks: data.chunks || [],
+                  }
+                : message
+            )
+          );
+          return;
+        }
+
+        if (eventName === "delta") {
+          const delta = data.content || "";
+
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    content: `${message.content}${delta}`,
+                  }
+                : message
+            )
+          );
+          return;
+        }
+
+        if (eventName === "error") {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    error: true,
+                    content: data.details
+                      ? `${data.error || "Erro"}\n\nDetalhes: ${data.details}`
+                      : data.error || "Erro ao processar streaming.",
+                  }
+                : message
+            )
+          );
+        }
+      }
+
+      function processRawEvent(rawEvent: string) {
+        const lines = rawEvent.split("\n");
+        let eventName = "message";
+        const dataLines: string[] = [];
+
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            eventName = line.replace(/^event:\s*/, "").trim();
+          }
+
+          if (line.startsWith("data:")) {
+            dataLines.push(line.replace(/^data:\s*/, ""));
+          }
+        }
+
+        if (dataLines.length > 0) {
+          applyEvent(eventName, dataLines.join("\n"));
+        }
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+
+        for (const rawEvent of events) {
+          processRawEvent(rawEvent);
+        }
+      }
+
+      if (buffer.trim()) {
+        processRawEvent(buffer);
+      }
     } catch (error) {
       console.error("Erro ao chamar a API:", error);
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          error: true,
-          content: "Erro ao chamar a API.",
-        },
-      ]);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? {
+                ...message,
+                error: true,
+                content: "Erro ao chamar a API.",
+              }
+            : message
+        )
+      );
     } finally {
       setLoading(false);
       textareaRef.current?.focus();
