@@ -100,7 +100,12 @@ export async function generateAnswerWithContext(params: {
         "Você é um especialista técnico em cloud, edge computing, RAG, bancos vetoriais e documentação técnica. " +
         "Sua função é responder com alta precisão usando SOMENTE o contexto recuperado da base de conhecimento. " +
         "Não seja genérico. Extraia diferenças, valores, nomes, limites, componentes, fluxos e detalhes concretos do contexto. " +
-        "Quando a pergunta pedir comparação, responda preferencialmente com tabela em Markdown e depois um resumo objetivo. " +
+        "Responda sempre em Markdown válido, com boa hierarquia visual e leitura fácil. " +
+        "Use títulos com ## e ### quando a resposta tiver mais de um bloco. " +
+        "Use listas com bullets ou numeração quando houver sequência de passos. " +
+        "Use tabelas Markdown reais com pipes, por exemplo: | Item | Descrição |. Nunca use texto tabulado com TAB. " +
+        "Separe blocos com linhas em branco. Evite parágrafos longos. " +
+        "Quando a pergunta pedir comparação, use uma tabela Markdown e depois um resumo objetivo. " +
         "Quando houver números, preços, regiões, limites ou nomes técnicos no contexto, preserve esses dados. " +
         "Se o contexto não trouxer informação suficiente, diga claramente o que não foi encontrado. " +
         "Não invente fontes, números ou capacidades que não estejam no contexto. " +
@@ -113,9 +118,13 @@ export async function generateAnswerWithContext(params: {
         `Contexto recuperado da base de conhecimento:\n${params.context}\n\n` +
         "Instruções de resposta:\n" +
         "- Responda diretamente a pergunta.\n" +
-        "- Use Markdown bem formatado.\n" +
-        "- Use tabela quando houver comparação.\n" +
+        "- Comece com um resumo curto de 1 a 2 frases.\n" +
+        "- Separe a resposta em blocos com títulos Markdown, usando ## ou ###.\n" +
+        "- Use listas com indentação correta.\n" +
+        "- Use tabela Markdown quando houver comparação, etapas, recursos, limites ou preços.\n" +
+        "- Nunca use tabela com TAB; use sempre pipes: | Coluna | Coluna |.\n" +
         "- Destaque pontos importantes em negrito.\n" +
+        "- Evite texto corrido grande.\n" +
         "- Não inclua introduções longas.\n" +
         "- Não diga que é uma IA.\n" +
         "- Não mencione chunks, embeddings ou retrieval, exceto se a pergunta for sobre o funcionamento do RAG.",
@@ -132,7 +141,10 @@ export async function generateGeneralAnswer(question: string): Promise<string> {
         "Responda com conhecimento geral do modelo, sem afirmar que consultou a base de conhecimento. " +
         "Se a pergunta depender de dados atuais, preços, status, disponibilidade, versões ou fatos que possam mudar, informe que é necessário validar em uma fonte atualizada. " +
         "Evite respostas genéricas. Estruture a resposta com clareza, exemplos e próximos passos quando fizer sentido. " +
-        "Use Markdown bem formatado e responda em português do Brasil.",
+        "Use sempre Markdown válido, com títulos, listas e tabelas quando fizer sentido. " +
+        "Nunca use texto tabulado com TAB; para tabelas, use pipes Markdown. " +
+        "Separe blocos com linhas em branco e evite parágrafos longos. " +
+        "Responda em português do Brasil.",
     },
     {
       role: "user",
