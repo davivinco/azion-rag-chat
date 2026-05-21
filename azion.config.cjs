@@ -17,6 +17,12 @@
  * https://github.com/aziontech/lib/tree/main/packages/config
  */
 
+const workloadCertificateId = Number(process.env.AZION_WORKLOAD_CERTIFICATE_ID || 149401);
+
+if (!workloadCertificateId) {
+  throw new Error("AZION_WORKLOAD_CERTIFICATE_ID não configurado.");
+}
+
 module.exports = {
   build: {
     preset: 'next',
@@ -171,5 +177,39 @@ module.exports = {
         }
       ]
     }
+  ],
+  workloads: [
+    {
+      name: 'azion-rag-chat-20260401234459',
+      active: true,
+      infrastructure: 1,
+      domains: ['ai.vinco.dev.br'],
+      workloadDomainAllowAccess: true,
+      protocols: {
+        http: {
+          versions: ['http1', 'http2'],
+          httpPorts: [80],
+          httpsPorts: [443]
+        }
+      },
+      tls: {
+        certificate: workloadCertificateId,
+        minimumVersion: 'tls_1_2'
+      },
+      deployments: [
+        {
+          name: 'azion-rag-chat-20260401234459',
+          current: true,
+          active: true,
+          strategy: {
+            type: 'default',
+            attributes: {
+              application: 'azion-rag-chat-20260401234459'
+            }
+          }
+        }
+      ]
+    }
   ]
+
 }

@@ -53,6 +53,8 @@ jobs:
           sudo chmod u+x /usr/bin/azion
 
       - name: Azion Deploy
+        env:
+          AZION_WORKLOAD_CERTIFICATE_ID: ${{ secrets.AZION_WORKLOAD_CERTIFICATE_ID }}
         run: |
           azion -t ${{ secrets.AZION_PERSONAL_TOKEN }}
           azion deploy --local --debug --auto --yes
