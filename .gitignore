@@ -43,3 +43,14 @@ next-env.d.ts
 .edge/
 .vulcan
 .open-next
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Local build/deploy artifacts
+.next
+.edge
+azion/azion.json.bkp
+azion.config.cjs.bkp
