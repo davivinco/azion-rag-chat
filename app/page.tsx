@@ -56,7 +56,7 @@ function formatScore(score?: number) {
 
 function MarkdownContent({ content }: { content: string }) {
   return (
-    <div className="prose prose-invert max-w-none prose-p:leading-7 prose-p:text-neutral-100 prose-li:text-neutral-100 prose-strong:text-white prose-strong:font-bold prose-code:text-orange-300 prose-code:bg-neutral-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-pre:bg-black prose-pre:border prose-pre:border-neutral-800 prose-pre:rounded-xl prose-table:text-sm prose-th:border-neutral-800 prose-td:border-neutral-800">
+    <div className="prose prose-invert max-w-none prose-headings:mb-3 prose-headings:mt-6 prose-h2:text-xl prose-h2:text-white prose-h3:text-lg prose-p:mb-4 prose-p:leading-7 prose-p:text-neutral-100 prose-li:my-1 prose-li:text-neutral-100 prose-ul:my-4 prose-ol:my-4 prose-strong:text-white prose-strong:font-bold prose-code:text-orange-300 prose-code:bg-neutral-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-pre:bg-black prose-pre:border prose-pre:border-neutral-800 prose-pre:rounded-xl prose-table:text-sm prose-th:border-neutral-800 prose-td:border-neutral-800 prose-thead:border-neutral-800 prose-th:bg-neutral-900 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );
