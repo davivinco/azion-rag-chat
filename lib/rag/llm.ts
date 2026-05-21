@@ -40,10 +40,7 @@ function getOptionalEnv(name: string, fallback: string): string {
   return azionGlobal.Azion?.env?.get?.(name) || process.env[name] || fallback;
 }
 
-export async function generateAnswerWithContext(params: {
-  question: string;
-  context: string;
-}): Promise<string> {
+async function callChatModel(messages: Array<{ role: "system" | "user"; content: string }>) {
   const endpoint = getEnv("CHAT_API_URL");
   const apiKey = getEnv("CHAT_API_KEY");
   const apiKeyHeader = getOptionalEnv("CHAT_API_KEY_HEADER", "X-API-Key");
@@ -70,20 +67,7 @@ export async function generateAnswerWithContext(params: {
       stream: false,
       max_tokens: 1200,
       temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você é um assistente RAG útil, objetivo e confiável. Responda somente com base no contexto fornecido. Se o contexto não tiver informação suficiente, diga isso claramente.",
-        },
-        {
-          role: "user",
-          content:
-            `Pergunta:\n${params.question}\n\n` +
-            `Contexto recuperado:\n${params.context}\n\n` +
-            "Responda em português do Brasil, de forma objetiva.",
-        },
-      ],
+      messages,
     }),
   });
 
@@ -102,4 +86,40 @@ export async function generateAnswerWithContext(params: {
   }
 
   return answer.trim();
+}
+
+export async function generateAnswerWithContext(params: {
+  question: string;
+  context: string;
+}): Promise<string> {
+  return callChatModel([
+    {
+      role: "system",
+      content:
+        "Você é um assistente RAG útil, objetivo e confiável. Responda somente com base no contexto fornecido. Se o contexto não tiver informação suficiente, diga isso claramente.",
+    },
+    {
+      role: "user",
+      content:
+        `Pergunta:\n${params.question}\n\n` +
+        `Contexto recuperado:\n${params.context}\n\n` +
+        "Responda em português do Brasil, de forma objetiva. Use Markdown quando fizer sentido.",
+    },
+  ]);
+}
+
+export async function generateGeneralAnswer(question: string): Promise<string> {
+  return callChatModel([
+    {
+      role: "system",
+      content:
+        "Você é um assistente útil, objetivo e confiável. Responda com conhecimento geral do modelo, sem afirmar que consultou a base de conhecimento. Quando a pergunta depender de dados atuais ou específicos que possam mudar, deixe claro que pode ser necessário validar em uma fonte atualizada.",
+    },
+    {
+      role: "user",
+      content:
+        `Pergunta:\n${question}\n\n` +
+        "Responda em português do Brasil, de forma objetiva. Use Markdown quando fizer sentido.",
+    },
+  ]);
 }

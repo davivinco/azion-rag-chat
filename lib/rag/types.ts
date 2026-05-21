@@ -18,6 +18,7 @@ export type RagSource = {
 
 export type ChatAnswer = {
   answer: string;
+  mode?: "edge-sql-vector-rag" | "llm-general";
   chunks?: RetrievedChunk[];
   sources?: RagSource[];
 };

@@ -1,4 +1,4 @@
-import { generateAnswerWithContext } from "./llm";
+import { generateAnswerWithContext, generateGeneralAnswer } from "./llm";
 import { retrieveRelevantChunks } from "./retrieve";
 import { ChatAnswer, RagSource, RetrievedChunk } from "./types";
 
@@ -70,15 +70,29 @@ function buildDisplayChunks(chunks: RetrievedChunk[]): RetrievedChunk[] {
 export async function generateMockRagAnswer(question: string): Promise<ChatAnswer> {
   const chunks = await retrieveRelevantChunks(question);
 
-  const hasRealChunks = chunks.some((chunk) => chunk.source !== "mock-empty-store");
+  if (!chunks.length) {
+    try {
+      const generalAnswer = await generateGeneralAnswer(question);
 
-  if (!hasRealChunks) {
-    return {
-      answer:
-        "Não encontrei informações relevantes na base de conhecimento para responder essa pergunta com segurança.",
-      chunks: [],
-      sources: [],
-    };
+      return {
+        mode: "llm-general",
+        answer:
+          `Não encontrei contexto relevante na base de conhecimento para essa pergunta.\n\n` +
+          `**Resposta geral:**\n\n${generalAnswer}`,
+        chunks: [],
+        sources: [],
+      };
+    } catch (error) {
+      console.error("Falha ao gerar resposta geral:", error);
+
+      return {
+        mode: "llm-general",
+        answer:
+          "Não encontrei contexto relevante na base de conhecimento e não consegui gerar uma resposta geral neste momento.",
+        chunks: [],
+        sources: [],
+      };
+    }
   }
 
   const context = buildContext(chunks);
@@ -92,6 +106,7 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
     });
 
     return {
+      mode: "edge-sql-vector-rag",
       answer,
       chunks: displayChunks,
       sources,
@@ -100,6 +115,7 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
     console.error("Falha ao gerar resposta com LLM. Usando resposta fallback:", error);
 
     return {
+      mode: "edge-sql-vector-rag",
       answer:
         `Resposta prévia com base nos chunks recuperados do Edge SQL.\n\n` +
         `Pergunta: ${question}\n\n` +
