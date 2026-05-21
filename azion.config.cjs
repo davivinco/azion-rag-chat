@@ -171,25 +171,5 @@ module.exports = {
         }
       ]
     }
-  ],
-  workloads: [
-    {
-      name: 'azion-rag-chat-20260401234459',
-      active: true,
-      infrastructure: 1,
-      deployments: [
-        {
-          name: 'azion-rag-chat-20260401234459',
-          current: true,
-          active: true,
-          strategy: {
-            type: 'default',
-            attributes: {
-              application: 'azion-rag-chat-20260401234459'
-            }
-          }
-        }
-      ]
-    }
   ]
 }
