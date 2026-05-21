@@ -1,494 +1,173 @@
-# Azion RAG Chat
+# Azion RAG Chat com AI Inference e Edge SQL
 
-Aplicação RAG criada com Next.js e executada na Azion Edge, utilizando AI Inference, Edge SQL e Vector Search para ingestão, indexação, busca semântica e geração de respostas com contexto.
+Este projeto demonstra uma arquitetura de **Retrieval-Augmented Generation (RAG)** executada na **Azion Edge**, utilizando **Azion AI Inference** para geração de embeddings e respostas em linguagem natural, e **Azion Edge SQL** como camada persistente para documentos, chunks, metadados e vetores.
 
-O objetivo deste projeto é demonstrar um fluxo RAG funcional rodando 100% na arquitetura de Edge da Azion, sem depender de um backend tradicional centralizado para execução da aplicação, busca vetorial ou inferência.
-
----
-
-## Visão geral
-
-Este projeto implementa um assistente com Retrieval-Augmented Generation, ou RAG.
-
-O fluxo principal é:
-
-```txt
-Documento
-→ extração de texto
-→ divisão em chunks
-→ geração de embeddings
-→ persistência no Edge SQL
-→ busca vetorial
-→ recuperação de contexto
-→ resposta final com LLM
-```
-
-Na implementação atual:
-
-```txt
-Next.js Application
-→ roda na Azion Edge
-
-AI Inference - Qwen3 Embedding 4B
-→ gera embeddings dos chunks e perguntas
-
-Azion SQL Database / Edge SQL
-→ armazena documentos, chunks e vetores
-
-Azion SQL Database Vector Search
-→ recupera chunks semanticamente relevantes
-
-AI Inference - Mistral Small
-→ gera a resposta final usando o contexto recuperado
-```
+O objetivo principal é permitir que uma aplicação consulte uma base de conhecimento própria e gere respostas contextualizadas, sem depender de infraestrutura externa tradicional para o fluxo principal de RAG.
 
 ---
 
-## Por que isso funciona 100% na Edge
+## 1. Visão geral da solução
 
-A Azion permite que esse projeto rode na Edge porque combina três capacidades principais:
+A solução combina quatro blocos principais:
 
-### 1. Edge Application
+| Camada | Função |
+|---|---|
+| **Aplicação na Azion Edge** | Executa a interface, APIs de ingestão, consulta e gerenciamento da base de conhecimento |
+| **AI Inference - Embeddings** | Transforma textos e perguntas em vetores numéricos |
+| **Edge SQL** | Armazena documentos, chunks, metadados e embeddings |
+| **AI Inference - LLM** | Gera a resposta final em linguagem natural com base no contexto recuperado |
 
-A aplicação Next.js é publicada na Azion e executada próxima do usuário, usando runtime de Edge.
+Fluxo resumido:
 
-Isso permite que as rotas da aplicação, como `/api/chat`, `/api/ingest` e `/api/knowledge/upload`, sejam processadas sem um servidor Node.js tradicional dedicado.
+1. O cliente envia documentos para a base de conhecimento.
+2. A aplicação extrai o texto desses documentos.
+3. O texto é dividido em chunks.
+4. Cada chunk é convertido em embedding.
+5. Os chunks, metadados e embeddings são persistidos no Edge SQL.
+6. O usuário faz uma pergunta.
+7. A pergunta também é convertida em embedding.
+8. O Edge SQL recupera os chunks semanticamente mais próximos.
+9. O modelo de linguagem recebe a pergunta + contexto recuperado.
+10. A resposta final é retornada ao usuário, com fontes e contexto consultado.
 
-### 2. AI Inference na Edge
+---
 
-O projeto usa endpoints de AI Inference da Azion para duas funções diferentes:
+## 2. Por que usar RAG?
 
-```txt
-Qwen3 Embedding 4B
-→ transforma textos em vetores numéricos
+Um modelo de linguagem sozinho responde com base no conhecimento aprendido durante seu treinamento. Isso é útil para respostas gerais, mas não garante conhecimento sobre documentos internos, políticas, manuais, propostas, contratos, catálogos ou informações privadas da empresa.
 
-Mistral Small
-→ gera a resposta final em linguagem natural
+O RAG resolve isso ao combinar:
+
+| Recurso | Papel |
+|---|---|
+| **Base de conhecimento própria** | Documentos confiáveis enviados pelo cliente |
+| **Busca semântica** | Recupera trechos relacionados à pergunta, mesmo com palavras diferentes |
+| **LLM** | Gera uma resposta natural usando os trechos recuperados |
+| **Fontes** | Permitem rastrear quais documentos foram usados na resposta |
+
+Na prática, o modelo não “aprende permanentemente” o conteúdo dos documentos. Ele usa os documentos como **contexto temporário** no momento da resposta.
+
+---
+
+## 3. Arquitetura lógica
+
+```mermaid
+flowchart TD
+    A[Usuário] --> B[Aplicação na Azion Edge]
+    B --> C[/API de Chat/]
+    C --> D[Gerar embedding da pergunta]
+    D --> E[Azion AI Inference - Qwen3 Embedding]
+    E --> F[Busca vetorial no Edge SQL]
+    F --> G[Chunks mais relevantes]
+    G --> H[Prompt com pergunta + contexto]
+    H --> I[Azion AI Inference - LLM]
+    I --> J[Resposta em streaming]
+    J --> A
+
+    K[Upload de documento] --> L[Extração de texto]
+    L --> M[Divisão em chunks]
+    M --> N[Gerar embedding dos chunks]
+    N --> O[Persistir no Edge SQL]
 ```
 
-A separação é importante:
+---
+
+## 4. Componentes utilizados
+
+### 4.1 Azion Edge Application
+
+A aplicação roda na Azion Edge e concentra as rotas necessárias para:
+
+- Receber perguntas do usuário.
+- Executar a busca RAG.
+- Retornar resposta em streaming.
+- Fazer upload de documentos.
+- Listar documentos indexados.
+- Remover documentos da base de conhecimento.
+
+Exemplos de rotas implementadas:
+
+| Rota | Função |
+|---|---|
+| `/api/chat/stream` | Gera resposta em tempo real usando RAG ou LLM geral |
+| `/api/ingest` | Ingestão direta de texto na base |
+| `/api/knowledge/upload` | Upload de arquivos para a base de conhecimento |
+| `/api/knowledge/list` | Lista documentos indexados |
+| `/api/knowledge/delete` | Remove documentos da base |
+
+---
+
+### 4.2 Azion AI Inference
+
+A solução utiliza dois tipos de modelo:
+
+| Modelo | Função |
+|---|---|
+| **Qwen3 Embedding 4B** | Geração de embeddings para busca semântica |
+| **Mistral Small** | Geração da resposta final em linguagem natural |
+
+O modelo de embedding transforma textos em vetores. Esses vetores permitem comparar a pergunta do usuário com os trechos armazenados, encontrando os conteúdos mais próximos semanticamente.
+
+Exemplo conceitual:
 
 ```txt
-Embedding model
-→ usado para busca semântica
+Pergunta:
+"Como o RAG encontra informações mesmo com palavras diferentes?"
 
-Chat model
-→ usado para responder ao usuário
+Chunk:
+"A busca vetorial usa embeddings para recuperar trechos semanticamente próximos."
+
+Resultado:
+Alta similaridade, mesmo sem as palavras serem idênticas.
 ```
 
-Ou seja, o Qwen3 não responde a pergunta final. Ele transforma textos em vetores.
+---
 
-O Mistral recebe a pergunta + contexto recuperado e gera a resposta.
+### 4.3 Azion Edge SQL
 
-### 3. Edge SQL com Vector Search
-
-O Edge SQL é usado como camada persistente da base de conhecimento.
+O Edge SQL é usado como camada persistente do RAG.
 
 Ele armazena:
 
-```txt
-documentos
-chunks textuais
-embeddings vetoriais
-metadados
-```
+- Documentos enviados.
+- Chunks extraídos dos documentos.
+- Metadados dos documentos.
+- Embeddings vetoriais.
+- Informações de controle da base de conhecimento.
 
-A busca vetorial permite comparar o embedding da pergunta com os embeddings dos chunks usando distância/similaridade vetorial.
+Tabelas recomendadas:
 
-Na prática:
-
-```txt
-Pergunta do usuário
-→ embedding da pergunta
-→ comparação com embeddings salvos
-→ top chunks mais relevantes
-→ contexto enviado ao LLM
-```
-
-Assim, a aplicação não precisa de um banco vetorial externo como Pinecone, Weaviate ou Chroma para o POC.
+| Tabela | Função |
+|---|---|
+| `rag_documents` | Controle dos documentos enviados |
+| `rag_chunks` | Armazena os trechos textuais |
+| `rag_chunk_embeddings` | Armazena os vetores para busca semântica |
 
 ---
 
-## Arquitetura
+## 5. Estrutura de dados recomendada
 
-```txt
-Usuário
-  |
-  v
-Azion Edge Application - Next.js
-  |
-  |-- /api/knowledge/upload
-  |     |-- recebe .txt, .md, .html, .htm
-  |     |-- extrai texto
-  |     |-- gera chunks
-  |     |-- gera embeddings via AI Inference
-  |     |-- salva no Edge SQL
-  |
-  |-- /api/ingest
-  |     |-- recebe texto bruto
-  |     |-- gera chunks
-  |     |-- gera embeddings
-  |     |-- salva no Edge SQL
-  |
-  |-- /api/chat
-  |     |-- recebe pergunta
-  |     |-- gera embedding da pergunta
-  |     |-- busca chunks similares no Edge SQL
-  |     |-- envia contexto ao Mistral
-  |     |-- retorna resposta + fontes + chunks
-  |
-  |-- /api/knowledge/list
-  |     |-- lista documentos indexados
-  |
-  |-- /api/knowledge/delete
-        |-- remove documento, chunks e embeddings
-```
-
----
-
-## Componentes principais
-
-### Frontend
-
-```txt
-app/page.tsx
-```
-
-Interface principal do chat.
-
-Mostra:
-
-```txt
-campo de pergunta
-resposta do modelo
-fontes utilizadas
-contexto recuperado
-scores dos chunks
-```
-
-### Gestão da base de conhecimento
-
-```txt
-app/knowledge/page.tsx
-```
-
-Interface para gestão mínima da base.
-
-Permite:
-
-```txt
-upload de arquivos .txt, .md, .html e .htm
-listar documentos indexados
-remover documentos
-```
-
-### API de chat
-
-```txt
-app/api/chat/route.ts
-```
-
-Recebe a pergunta do usuário e chama o pipeline RAG.
-
-Retorna:
-
-```json
-{
-  "ok": true,
-  "mode": "edge-sql-vector-rag",
-  "answer": "...",
-  "sources": [],
-  "chunks": []
-}
-```
-
-### API de ingestão
-
-```txt
-app/api/ingest/route.ts
-```
-
-Recebe texto puro via JSON e indexa na base.
-
-Exemplo:
-
-```bash
-curl -X POST https://SEU_DOMINIO/api/ingest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "documento.txt",
-    "text": "Conteúdo do documento",
-    "chunkSize": 1200,
-    "overlap": 180,
-    "generateEmbeddings": true
-  }'
-```
-
-### API de upload
-
-```txt
-app/api/knowledge/upload/route.ts
-```
-
-Recebe arquivo via `multipart/form-data`.
-
-Formatos suportados atualmente:
-
-```txt
-.txt
-.md
-.html
-.htm
-```
-
-Exemplo:
-
-```bash
-curl -X POST https://SEU_DOMINIO/api/knowledge/upload \
-  -F "file=@/tmp/base-teste.txt;type=text/plain"
-```
-
-### API de listagem
-
-```txt
-app/api/knowledge/list/route.ts
-```
-
-Lista documentos registrados na base.
-
-Exemplo:
-
-```bash
-curl -X GET https://SEU_DOMINIO/api/knowledge/list
-```
-
-### API de remoção
-
-```txt
-app/api/knowledge/delete/route.ts
-```
-
-Remove um documento da base, incluindo:
-
-```txt
-registro do documento
-chunks textuais
-embeddings
-```
-
-Exemplo:
-
-```bash
-curl -X POST https://SEU_DOMINIO/api/knowledge/delete \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source": "documento.txt"
-  }'
-```
-
----
-
-## Estrutura de arquivos
-
-```txt
-app/
-  api/
-    chat/
-      route.ts
-    ingest/
-      route.ts
-    knowledge/
-      upload/
-        route.ts
-      list/
-        route.ts
-      delete/
-        route.ts
-  knowledge/
-    page.tsx
-  page.tsx
-
-lib/
-  rag/
-    answer.ts
-    embeddings.ts
-    file-text.ts
-    llm.ts
-    retrieve.ts
-    split.ts
-    store.ts
-    types.ts
-    vector-store.ts
-
-scripts/
-  ingest-pdf.mjs
-```
-
----
-
-## Lógica do RAG
-
-### 1. Upload ou ingestão
-
-O usuário pode enviar conteúdo por:
-
-```txt
-/api/ingest
-/api/knowledge/upload
-scripts/ingest-pdf.mjs
-```
-
-O conteúdo é transformado em texto.
-
-### 2. Chunking
-
-O texto é dividido em trechos menores.
-
-Arquivo responsável:
-
-```txt
-lib/rag/split.ts
-```
-
-A divisão usa:
-
-```txt
-chunkSize
-overlap
-limite por palavra
-```
-
-Isso evita cortar palavras no meio e melhora a qualidade do contexto.
-
-### 3. Embeddings
-
-Cada chunk é enviado para o endpoint de embeddings.
-
-Arquivo responsável:
-
-```txt
-lib/rag/embeddings.ts
-```
-
-Modelo usado:
-
-```txt
-Qwen/Qwen3-Embedding-4B
-```
-
-Endpoint:
-
-```txt
-/v1/embeddings
-```
-
-Header usado no POC:
-
-```txt
-X-API-Key
-```
-
-Exemplo de configuração:
-
-```txt
-EMBEDDINGS_API_URL=https://SEU_ENDPOINT/v1/embeddings
-EMBEDDINGS_API_KEY=SEU_TOKEN
-EMBEDDINGS_API_KEY_HEADER=X-API-Key
-EMBEDDINGS_MODEL=Qwen/Qwen3-Embedding-4B
-EMBEDDINGS_DIMENSIONS=256
-```
-
-### 4. Persistência
-
-O projeto grava informações no Edge SQL.
-
-Tabelas usadas:
-
-```txt
-rag_documents
-rag_chunks
-rag_chunk_embeddings
-```
-
-### 5. Busca vetorial
-
-Quando o usuário faz uma pergunta:
-
-```txt
-pergunta
-→ embedding da pergunta
-→ busca vetorial no Edge SQL
-→ chunks mais próximos
-```
-
-Arquivo responsável:
-
-```txt
-lib/rag/vector-store.ts
-```
-
-A busca usa distância cosseno.
-
-O score é calculado como:
-
-```txt
-score = 1 - distance
-```
-
-Para evitar retorno de documentos irrelevantes, foi adicionado um filtro mínimo:
-
-```txt
-minScore = 0.6
-```
-
-Assim, o sistema evita trazer documentos apenas porque estão entre os top 5, mesmo que sejam pouco relevantes.
-
-### 6. Geração da resposta
-
-Depois que os chunks são recuperados, eles são enviados como contexto para o modelo de chat.
-
-Arquivo responsável:
-
-```txt
-lib/rag/llm.ts
-```
-
-Modelo usado:
-
-```txt
-casperhansen-mistral-small-24b-instruct-2501-awq
-```
-
-Endpoint:
-
-```txt
-/v1/chat/completions
-```
-
-A instrução do sistema força o modelo a responder somente com base no contexto recuperado.
-
----
-
-## Banco de dados
-
-### Tabela `rag_documents`
-
-Guarda metadados dos documentos.
+### 5.1 Tabela de documentos
 
 ```sql
 CREATE TABLE IF NOT EXISTS rag_documents (
   id TEXT PRIMARY KEY,
   filename TEXT NOT NULL,
   content_type TEXT NOT NULL,
-  size_bytes INTEGER,
+  size_bytes INTEGER NOT NULL,
   status TEXT NOT NULL,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### Tabela `rag_chunks`
+Essa tabela funciona como o índice administrativo da base de conhecimento.
 
-Guarda os chunks textuais.
+Ela permite listar, controlar e remover documentos de forma organizada.
+
+---
+
+### 5.2 Tabela de chunks
 
 ```sql
 CREATE TABLE IF NOT EXISTS rag_chunks (
@@ -501,295 +180,694 @@ CREATE TABLE IF NOT EXISTS rag_chunks (
 );
 ```
 
-### Tabela `rag_chunk_embeddings`
+Cada documento é dividido em pequenos trechos. Esses trechos são usados como contexto para o modelo.
 
-Guarda embeddings vetoriais.
+Exemplo:
+
+```txt
+Documento: manual-cloudlets.pdf
+
+Chunk 0:
+"Cloudlets App Platform Standard oferece throughput de disco..."
+
+Chunk 1:
+"Cloudlets App Platform Premium possui maior previsibilidade..."
+```
+
+---
+
+### 5.3 Tabela de embeddings
 
 ```sql
-CREATE TABLE rag_chunk_embeddings (
+CREATE TABLE IF NOT EXISTS rag_chunk_embeddings (
   chunk_id TEXT PRIMARY KEY,
   source TEXT NOT NULL,
   chunk_index INTEGER NOT NULL,
   content TEXT NOT NULL,
-  embedding F32_BLOB(256),
+  embedding VECTOR(256),
   metadata TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-Índice vetorial:
+O campo `embedding VECTOR(256)` armazena o vetor gerado pelo modelo de embedding.
 
-```sql
-CREATE INDEX IF NOT EXISTS rag_chunk_embeddings_idx
-ON rag_chunk_embeddings (
-  libsql_vector_idx(embedding, 'metric=cosine')
-);
+A dimensão precisa ser compatível com o parâmetro utilizado na chamada do modelo de embeddings.
+
+---
+
+## 6. Fluxo de ingestão
+
+O fluxo de ingestão é responsável por transformar documentos em dados pesquisáveis.
+
+### 6.1 Upload ou envio de texto
+
+A aplicação pode receber conteúdo de duas formas:
+
+| Entrada | Exemplo |
+|---|---|
+| Upload de arquivo | `.txt`, `.md`, `.html`, `.pdf` |
+| Texto direto via API | JSON com `source` e `text` |
+
+Exemplo de ingestão via API:
+
+```bash
+curl -X POST https://SEU_DOMINIO/api/ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "manual-rag.txt",
+    "text": "O RAG utiliza embeddings para buscar contexto relevante.",
+    "chunkSize": 800,
+    "overlap": 120,
+    "generateEmbeddings": true
+  }'
 ```
 
 ---
 
-## Variáveis de ambiente
+### 6.2 Extração de texto
 
-Essas variáveis precisam existir no runtime da Azion.
+Para arquivos simples como `.txt`, `.md` e `.html`, o conteúdo pode ser lido diretamente.
+
+Para PDF, existem duas possibilidades:
+
+| Estratégia | Observação |
+|---|---|
+| Extração no navegador | Útil para evitar limitações do runtime Edge |
+| Extração no backend | Exige biblioteca compatível com o ambiente de execução |
+
+Neste projeto, a extração de PDF pode ser feita no navegador antes do envio para a API de ingestão.
+
+> PDFs escaneados ou baseados em imagem exigem OCR, o que não faz parte do fluxo principal.
+
+---
+
+### 6.3 Divisão em chunks
+
+Após extrair o texto, a aplicação divide o conteúdo em partes menores.
+
+Exemplo de configuração:
+
+```json
+{
+  "chunkSize": 800,
+  "overlap": 120
+}
+```
+
+| Parâmetro | Função |
+|---|---|
+| `chunkSize` | Define o tamanho máximo de cada trecho |
+| `overlap` | Mantém uma sobreposição entre chunks para preservar contexto |
+
+A sobreposição evita perda de sentido quando uma informação importante fica dividida entre dois trechos.
+
+---
+
+### 6.4 Geração de embeddings
+
+Cada chunk é enviado ao modelo de embeddings.
+
+Exemplo de chamada:
+
+```bash
+curl -X POST "https://SEU_AI_ENDPOINT/v1/embeddings" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: SUA_CHAVE" \
+  -d '{
+    "model": "Qwen/Qwen3-Embedding-4B",
+    "input": "Texto do chunk que será transformado em vetor.",
+    "encoding_format": "float",
+    "dimensions": 256
+  }'
+```
+
+Resposta esperada:
+
+```json
+{
+  "object": "list",
+  "model": "qwen-qwen3-embedding-4b",
+  "data": [
+    {
+      "object": "embedding",
+      "index": 0,
+      "embedding": [0.0123, -0.0456, 0.0789]
+    }
+  ]
+}
+```
+
+O vetor retornado é salvo no Edge SQL junto com o conteúdo original do chunk.
+
+---
+
+## 7. Fluxo de consulta
+
+Quando o usuário faz uma pergunta, o processo é semelhante à ingestão, mas aplicado à pergunta.
+
+### 7.1 Pergunta do usuário
+
+Exemplo:
 
 ```txt
+Como essa aplicação usa AI Inference e Edge SQL para implementar RAG?
+```
+
+### 7.2 Geração do embedding da pergunta
+
+A pergunta é enviada ao mesmo modelo de embeddings usado na ingestão.
+
+Isso garante que pergunta e documentos estejam no mesmo espaço vetorial.
+
+---
+
+### 7.3 Busca vetorial no Edge SQL
+
+A aplicação compara o vetor da pergunta com os vetores armazenados.
+
+O objetivo é recuperar os chunks mais próximos semanticamente.
+
+Exemplo lógico:
+
+```sql
+SELECT
+  chunk_id,
+  source,
+  chunk_index,
+  content,
+  vector_distance_cos(embedding, :question_embedding) AS distance
+FROM rag_chunk_embeddings
+ORDER BY distance ASC
+LIMIT 4;
+```
+
+A query exata pode variar conforme a função vetorial disponível no ambiente.
+
+---
+
+### 7.4 Filtro de relevância
+
+Nem todo resultado vetorial deve ser usado.
+
+É importante aplicar um limite mínimo de score para evitar contexto incorreto.
+
+Exemplo:
+
+```ts
+const VECTOR_TOP_K = 4;
+const MIN_VECTOR_SCORE = 0.68;
+```
+
+| Parâmetro | Função |
+|---|---|
+| `VECTOR_TOP_K` | Quantidade máxima de chunks recuperados |
+| `MIN_VECTOR_SCORE` | Score mínimo para considerar um chunk relevante |
+
+Se nenhum chunk atingir o score mínimo, a aplicação pode responder como LLM geral, sem fontes da base.
+
+---
+
+## 8. Modos de resposta
+
+A solução pode operar em dois modos.
+
+### 8.1 Resposta com RAG
+
+Esse modo é usado quando a busca vetorial encontra contexto relevante.
+
+Características:
+
+- Usa chunks recuperados do Edge SQL.
+- Envia contexto para o modelo de linguagem.
+- Retorna fontes utilizadas.
+- Permite exibir o contexto recuperado.
+- Reduz risco de resposta genérica ou desconectada da base.
+
+Exemplo de retorno:
+
+```json
+{
+  "mode": "edge-sql-vector-rag",
+  "answer": "A aplicação usa AI Inference para gerar embeddings...",
+  "sources": [
+    {
+      "source": "README.md",
+      "chunkIndex": 2,
+      "score": 0.91
+    }
+  ],
+  "chunks": [
+    {
+      "source": "README.md",
+      "content": "O RAG utiliza embeddings para recuperar contexto...",
+      "score": 0.91
+    }
+  ]
+}
+```
+
+---
+
+### 8.2 Resposta geral
+
+Esse modo é usado quando a busca vetorial não encontra contexto relevante.
+
+Características:
+
+- Não exibe fontes.
+- Não inventa contexto.
+- Responde como uma LLM normal.
+- Informa que não encontrou contexto relevante na base.
+
+Exemplo:
+
+```txt
+Não encontrei contexto relevante na base de conhecimento para essa pergunta.
+
+Resposta geral:
+...
+```
+
+Esse comportamento é importante para manter transparência. A aplicação continua útil, mas não finge que encontrou fonte quando não encontrou.
+
+---
+
+## 9. Prompt do modelo de resposta
+
+O prompt do modelo precisa ser bem definido para evitar respostas genéricas.
+
+Exemplo de system prompt para resposta com RAG:
+
+```txt
+Você é um especialista técnico em cloud, edge computing, RAG, bancos vetoriais e documentação técnica.
+
+Responda usando somente o contexto recuperado da base de conhecimento.
+
+Use dados, nomes, componentes, limites e detalhes concretos presentes no contexto.
+
+A resposta deve estar em Markdown válido e bem formatado.
+
+Se o contexto não tiver informação suficiente, diga isso claramente.
+
+Não invente fontes, números ou capacidades que não estejam no contexto.
+```
+
+Exemplo de mensagem enviada ao modelo:
+
+```txt
+Pergunta do usuário:
+{question}
+
+Contexto recuperado:
+{context}
+
+Instruções:
+- Responda diretamente a pergunta.
+- Use Markdown válido.
+- Use tabelas quando houver comparação.
+- Destaque pontos importantes em negrito.
+- Não mencione chunks ou embeddings, exceto se a pergunta for sobre o funcionamento do RAG.
+```
+
+---
+
+## 10. Streaming de resposta
+
+Para melhorar a experiência do usuário, a aplicação pode retornar a resposta em streaming.
+
+Fluxo recomendado:
+
+1. A API inicia uma resposta `text/event-stream`.
+2. Envia um evento `meta` com modo, fontes e chunks.
+3. Envia eventos `delta` conforme o modelo gera a resposta.
+4. Envia um evento `done` ao finalizar.
+
+Exemplo:
+
+```txt
+event: meta
+data: {"mode":"edge-sql-vector-rag","sources":[...],"chunks":[...]}
+
+event: delta
+data: {"content":"A aplicação"}
+
+event: delta
+data: {"content":" usa AI Inference..."}
+
+event: done
+data: {"ok":true}
+```
+
+Na interface, recomenda-se:
+
+- Renderizar texto simples enquanto a resposta está sendo gerada.
+- Aplicar Markdown somente ao final.
+- Exibir fontes e contexto recolhidos para não poluir a tela.
+
+---
+
+## 11. Gestão da base de conhecimento
+
+A solução deve permitir uma gestão mínima da base.
+
+Recursos recomendados:
+
+| Recurso | Função |
+|---|---|
+| Upload | Enviar novos documentos |
+| Listagem | Visualizar documentos indexados |
+| Remoção | Remover documentos da base |
+| Reindexação | Substituir documento por uma nova versão |
+
+Formatos suportados neste projeto:
+
+| Formato | Observação |
+|---|---|
+| `.txt` | Texto puro |
+| `.md` | Markdown |
+| `.html` / `.htm` | HTML convertido para texto |
+| `.pdf` | Suportado quando possui texto selecionável |
+
+Limite recomendado:
+
+```txt
+5 MB por arquivo ou payload
+```
+
+Esse limite evita payloads muito grandes e reduz risco de impacto na função Edge.
+
+---
+
+## 12. Variáveis de ambiente
+
+Exemplo de variáveis utilizadas:
+
+```env
 AZION_PERSONAL_TOKEN=
 EDGE_SQL_DATABASE_ID=
-
-EMBEDDINGS_API_URL=
-EMBEDDINGS_API_KEY=
-EMBEDDINGS_API_KEY_HEADER=X-API-Key
-EMBEDDINGS_MODEL=Qwen/Qwen3-Embedding-4B
-EMBEDDINGS_DIMENSIONS=256
 
 CHAT_API_URL=
 CHAT_API_KEY=
 CHAT_API_KEY_HEADER=X-API-Key
 CHAT_MODEL=casperhansen-mistral-small-24b-instruct-2501-awq
+
+EMBEDDING_API_URL=
+EMBEDDING_API_KEY=
+EMBEDDING_API_KEY_HEADER=X-API-Key
+EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B
+
+AZION_WORKLOAD_CERTIFICATE_ID=
 ```
 
-Exemplo local:
-
-```bash
-cat > .env.local <<'ENV'
-AZION_PERSONAL_TOKEN=SEU_TOKEN
-EDGE_SQL_DATABASE_ID=1770
-
-EMBEDDINGS_API_URL=https://SEU_ENDPOINT/v1/embeddings
-EMBEDDINGS_API_KEY=SEU_TOKEN
-EMBEDDINGS_API_KEY_HEADER=X-API-Key
-EMBEDDINGS_MODEL=Qwen/Qwen3-Embedding-4B
-EMBEDDINGS_DIMENSIONS=256
-
-CHAT_API_URL=https://SEU_ENDPOINT/v1/chat/completions
-CHAT_API_KEY=SEU_TOKEN
-CHAT_API_KEY_HEADER=X-API-Key
-CHAT_MODEL=casperhansen-mistral-small-24b-instruct-2501-awq
-ENV
-```
-
-Importante: `.env.local` não deve ser commitado.
+| Variável | Função |
+|---|---|
+| `AZION_PERSONAL_TOKEN` | Token usado para chamadas à API da Azion |
+| `EDGE_SQL_DATABASE_ID` | ID do banco Edge SQL |
+| `CHAT_API_URL` | Endpoint de chat completions do AI Inference |
+| `CHAT_API_KEY` | Chave de autenticação do endpoint de chat |
+| `CHAT_MODEL` | Modelo usado para resposta final |
+| `EMBEDDING_API_URL` | Endpoint de embeddings do AI Inference |
+| `EMBEDDING_API_KEY` | Chave de autenticação do endpoint de embeddings |
+| `EMBEDDING_MODEL` | Modelo usado para gerar embeddings |
+| `AZION_WORKLOAD_CERTIFICATE_ID` | ID do certificado usado no Workload |
 
 ---
 
-## Deploy
+## 13. Passo a passo para implementar em outra aplicação
 
-O deploy é feito via GitHub Actions.
+### Passo 1: Criar a base no Edge SQL
 
-Workflow:
+Crie um banco no Edge SQL e configure as tabelas:
 
-```txt
-.github/workflows/main.yml
-```
+1. `rag_documents`
+2. `rag_chunks`
+3. `rag_chunk_embeddings`
 
-O workflow:
-
-```txt
-faz checkout do repositório
-instala Node.js
-instala dependências
-instala Azion CLI
-executa azion deploy
-```
-
-Para rodar corretamente:
-
-```txt
-GitHub
-→ Actions
-→ Azion Deploy
-→ Run workflow
-→ branch main
-→ Run workflow
-```
-
-Não usar `Re-run all jobs` para publicar versão nova, porque isso reroda uma execução antiga com commit antigo.
+Garanta que a dimensão do campo vetorial seja compatível com o modelo de embeddings escolhido.
 
 ---
 
-## Comandos úteis
+### Passo 2: Configurar AI Inference
 
-### Build local
+Configure dois endpoints ou modelos:
 
-```bash
-rm -rf .next
-npm run build
-```
+| Tipo | Uso |
+|---|---|
+| Embeddings | Transformar texto em vetor |
+| Chat completions | Gerar resposta final |
 
-### Commit e push
+Valide primeiro os modelos com `curl`.
 
-```bash
-git status
-git add .
-git commit -m "mensagem do commit"
-git push origin main
-```
-
-### Testar upload
+Teste de embedding:
 
 ```bash
-curl -X POST https://SEU_DOMINIO/api/knowledge/upload \
-  -F "file=@/tmp/base-teste.txt;type=text/plain"
-```
-
-### Listar base
-
-```bash
-curl -X GET https://SEU_DOMINIO/api/knowledge/list
-```
-
-### Remover documento
-
-```bash
-curl -X POST https://SEU_DOMINIO/api/knowledge/delete \
+curl -X POST "https://SEU_AI_ENDPOINT/v1/embeddings" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: SUA_CHAVE" \
   -d '{
-    "source": "base-teste.txt"
+    "model": "Qwen/Qwen3-Embedding-4B",
+    "input": "Teste de embedding",
+    "encoding_format": "float",
+    "dimensions": 256
   }'
 ```
 
-### Perguntar ao RAG
+Teste de chat:
 
 ```bash
-curl -X POST https://SEU_DOMINIO/api/chat \
+curl -X POST "https://SEU_AI_ENDPOINT/v1/chat/completions" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: SUA_CHAVE" \
   -d '{
-    "prompt": "Quais formatos a base de conhecimento suporta no upload?"
+    "model": "casperhansen-mistral-small-24b-instruct-2501-awq",
+    "stream": false,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Responda em uma frase o que é RAG."
+      }
+    ]
   }'
 ```
 
 ---
 
-## Ingestão de PDF
+### Passo 3: Criar a rota de ingestão
 
-O upload via interface suporta inicialmente:
+A rota de ingestão deve:
 
-```txt
-.txt
-.md
-.html
-.htm
+1. Receber `source`, `text`, `chunkSize`, `overlap`.
+2. Validar limite de payload.
+3. Registrar o documento.
+4. Dividir o texto em chunks.
+5. Salvar chunks no Edge SQL.
+6. Gerar embeddings.
+7. Salvar embeddings no Edge SQL.
+
+Exemplo de payload:
+
+```json
+{
+  "source": "manual.txt",
+  "text": "Conteúdo do documento...",
+  "chunkSize": 800,
+  "overlap": 120,
+  "generateEmbeddings": true
+}
 ```
 
-Para PDF, o projeto inclui um script local:
+---
 
-```txt
-scripts/ingest-pdf.mjs
+### Passo 4: Criar a rota de consulta
+
+A rota de consulta deve:
+
+1. Receber a pergunta.
+2. Gerar embedding da pergunta.
+3. Buscar chunks similares no Edge SQL.
+4. Filtrar por score mínimo.
+5. Montar contexto.
+6. Enviar pergunta + contexto para o LLM.
+7. Retornar resposta, fontes e chunks.
+
+---
+
+### Passo 5: Implementar fallback sem RAG
+
+Caso a busca vetorial não encontre contexto relevante:
+
+1. Não envie contexto falso ao modelo.
+2. Não retorne fontes.
+3. Responda em modo geral.
+4. Informe que não encontrou contexto relevante na base.
+
+Isso evita que a aplicação pareça confiável usando fontes erradas.
+
+---
+
+### Passo 6: Habilitar streaming
+
+Para uma experiência melhor:
+
+1. Use `stream: true` na chamada ao modelo.
+2. Retorne eventos SSE.
+3. No frontend, exiba texto em tempo real.
+4. Renderize Markdown apenas ao final.
+
+---
+
+### Passo 7: Criar gestão mínima da base
+
+Implemente endpoints ou tela administrativa para:
+
+- Upload de documento.
+- Listagem de documentos.
+- Remoção de documentos.
+- Reindexação.
+
+Essa gestão é essencial para uso real em cliente.
+
+---
+
+## 14. Boas práticas
+
+### 14.1 Segurança
+
+- Não exponha chaves do AI Inference no frontend.
+- Use variáveis de ambiente ou secrets.
+- Proteja endpoints administrativos.
+- Aplique limite de tamanho no upload.
+- Valide tipo de arquivo.
+- Evite armazenar documentos sensíveis sem controle de acesso.
+
+---
+
+### 14.2 Qualidade do RAG
+
+- Use chunks pequenos o suficiente para serem objetivos.
+- Use overlap para preservar contexto.
+- Ajuste `MIN_VECTOR_SCORE` conforme a qualidade das respostas.
+- Mostre fontes utilizadas.
+- Permita visualizar o contexto recuperado.
+- Não use contexto irrelevante só para sempre responder com RAG.
+
+---
+
+### 14.3 Experiência do usuário
+
+- Use streaming para reduzir percepção de espera.
+- Mostre quando a resposta veio da base.
+- Mostre quando a resposta é geral.
+- Deixe fontes recolhidas por padrão.
+- Formate respostas em Markdown.
+- Não mostre chunks gigantes na tela principal.
+
+---
+
+## 15. Troubleshooting
+
+### O modelo responde com contexto errado
+
+Verifique:
+
+- Score mínimo está baixo demais.
+- Chunks estão grandes demais.
+- Documento indexado contém conteúdo irrelevante.
+- A pergunta é muito genérica.
+- O fallback textual está ativo indevidamente.
+
+Recomendação:
+
+```ts
+const VECTOR_TOP_K = 4;
+const MIN_VECTOR_SCORE = 0.68;
 ```
 
-Esse script:
+---
 
-```txt
-lê o PDF localmente
-extrai texto
-envia para /api/ingest
-gera chunks
-gera embeddings
-salva no Edge SQL
-```
+### O modelo responde de forma genérica
+
+Verifique:
+
+- O prompt do sistema está fraco.
+- Pouco contexto está sendo enviado.
+- Os chunks recuperados não têm detalhes suficientes.
+- O `max_tokens` está baixo.
+- A base de conhecimento não contém informação específica.
+
+---
+
+### O Markdown aparece quebrado
+
+Recomendações:
+
+- Instrua o modelo a responder em Markdown válido.
+- Renderize Markdown somente ao final do streaming.
+- Normalize títulos comuns no frontend.
+- Use tabelas Markdown reais com pipes.
+
+---
+
+### O upload de PDF não funciona
+
+Verifique:
+
+- O PDF possui texto selecionável.
+- O arquivo não ultrapassa o limite de 5 MB.
+- A extração está sendo feita no navegador ou em runtime compatível.
+- PDFs escaneados exigem OCR.
+
+---
+
+### O certificado volta para Azion SAN após deploy
+
+Isso pode acontecer quando o deploy faz PATCH no Workload sem preservar domínio/certificado.
+
+Recomendação:
+
+- Versione o Workload com o domínio correto.
+- Informe o certificado correto em `tls.certificate`.
+- Mantenha o ID do Workload existente no `azion/azion.json`.
+- Não deixe `domains: []` no metadata local.
+- Use secret para `AZION_WORKLOAD_CERTIFICATE_ID`.
 
 Exemplo:
 
-```bash
-node scripts/ingest-pdf.mjs "/Users/seu.usuario/Downloads/documento.pdf"
-```
-
-Esse caminho foi escolhido porque parsing de PDF dentro de runtime Edge pode ser mais pesado e menos previsível. Para o POC, extrair localmente e enviar o texto para a Edge é mais simples e estável.
-
----
-
-## Limitações atuais
-
-### 1. Download do arquivo original
-
-Hoje o projeto gerencia documentos, chunks e embeddings, mas ainda não salva o binário original do arquivo.
-
-Por isso, o download real do arquivo original ainda não está implementado.
-
-Próxima evolução recomendada:
-
-```txt
-salvar arquivo original no Azion Object Storage
-salvar metadados no Edge SQL
-usar /api/knowledge/download para recuperar o arquivo
-```
-
-### 2. PDF via upload web
-
-O PDF já é suportado via script local, mas ainda não diretamente no endpoint `/api/knowledge/upload`.
-
-Próxima evolução:
-
-```txt
-upload PDF
-→ salvar no Object Storage
-→ processar texto
-→ indexar no Edge SQL
-```
-
-### 3. Filtro de relevância
-
-A busca vetorial usa `minScore = 0.6`.
-
-Esse valor pode ser ajustado:
-
-```txt
-0.55 → mais permissivo
-0.60 → equilíbrio para POC
-0.70 → mais restritivo
+```js
+tls: {
+  certificate: workloadCertificateId,
+  minimumVersion: 'tls_1_2'
+}
 ```
 
 ---
 
-## Fluxo final validado
+## 16. Resultado esperado
 
-O projeto já validou:
+Ao final da implementação, a aplicação deve ser capaz de:
 
-```txt
-Application na Azion
-Deploy via GitHub Actions
-Upload de arquivos textuais
-Ingestão manual
-Ingestão de PDF via script local
-Geração de embeddings com Qwen3
-Persistência no Edge SQL
-Busca vetorial
-Resposta final com Mistral
-Exibição de fontes e contexto recuperado
-Gestão mínima da base de conhecimento
-```
+- Receber documentos do cliente.
+- Transformar documentos em chunks.
+- Gerar embeddings.
+- Persistir conhecimento no Edge SQL.
+- Recuperar contexto semanticamente relevante.
+- Responder com base nos documentos.
+- Exibir fontes utilizadas.
+- Responder em streaming.
+- Diferenciar resposta com RAG de resposta geral.
+- Rodar o fluxo principal na Azion Edge.
 
 ---
 
-## Próximos passos
+## 17. Conclusão
 
-Melhorias recomendadas:
+Essa arquitetura permite construir uma aplicação RAG usando recursos da Azion para executar o fluxo principal na Edge.
 
-```txt
-1. Adicionar Object Storage para salvar arquivos originais
-2. Implementar download real
-3. Adicionar upload direto de PDF pela interface
-4. Criar autenticação para a área /knowledge
-5. Adicionar reprocessamento de documento
-6. Adicionar status de indexing: pending, processing, indexed, failed
-7. Adicionar limpeza automática de documentos de teste
-8. Melhorar ranking com reranker
-9. Adicionar filtros por documento/fonte
-10. Criar logs de ingestão e consulta
-```
+A combinação de **AI Inference**, **Edge SQL**, **Edge Application** e **streaming de resposta** cria uma base sólida para assistentes corporativos, consultas em documentação, suporte técnico, bases internas, catálogos, manuais e outros casos em que a resposta precisa ser contextualizada por documentos do cliente.
 
----
-
-## Resumo técnico
-
-Este projeto demonstra que é possível criar uma aplicação RAG usando a stack da Azion de ponta a ponta:
+O frontend pode variar conforme o produto, mas o núcleo da solução é o mesmo:
 
 ```txt
-Edge Application
-+ AI Inference
-+ Edge SQL
-+ Vector Search
-+ GitHub Actions
+Documento → Chunks → Embeddings → Edge SQL → Busca vetorial → Contexto → LLM → Resposta
 ```
-
-A aplicação roda na Edge, gera embeddings via AI Inference, persiste vetores no Edge SQL, faz busca semântica próxima do usuário e usa o modelo de chat para gerar respostas contextualizadas.
