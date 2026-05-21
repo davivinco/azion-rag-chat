@@ -37,6 +37,7 @@ type ChatMessage = {
   sources?: RagSource[];
   chunks?: RagChunk[];
   error?: boolean;
+  streaming?: boolean;
 };
 
 const exampleQuestions = [
@@ -57,6 +58,15 @@ function MarkdownContent({ content }: { content: string }) {
   return (
     <div className="prose prose-invert max-w-none prose-p:leading-7 prose-p:text-neutral-100 prose-li:text-neutral-100 prose-strong:text-white prose-strong:font-bold prose-code:text-orange-300 prose-code:bg-neutral-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-pre:bg-black prose-pre:border prose-pre:border-neutral-800 prose-pre:rounded-xl prose-table:text-sm prose-th:border-neutral-800 prose-td:border-neutral-800">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  );
+}
+
+function StreamingContent({ content }: { content: string }) {
+  return (
+    <div className="whitespace-pre-wrap text-sm leading-7 text-neutral-100">
+      {content}
+      <span className="ml-1 inline-block h-4 w-2 animate-pulse rounded-sm bg-orange-400 align-middle" />
     </div>
   );
 }
@@ -191,11 +201,71 @@ export default function HomePage() {
       content: "",
       sources: [],
       chunks: [],
+      streaming: true,
     };
 
     setMessages((current) => [...current, userMessage, assistantMessage]);
     setQuestion("");
     setLoading(true);
+
+    let deltaQueue = "";
+    let pumpTimer: ReturnType<typeof setInterval> | null = null;
+
+    function appendToAssistant(text: string) {
+      if (!text) return;
+
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? {
+                ...message,
+                content: `${message.content}${text}`,
+              }
+            : message
+        )
+      );
+    }
+
+    function startPump() {
+      if (pumpTimer) return;
+
+      pumpTimer = setInterval(() => {
+        if (!deltaQueue) return;
+
+        const chunkSize = Math.min(18, Math.max(4, Math.ceil(deltaQueue.length / 12)));
+        const nextChunk = deltaQueue.slice(0, chunkSize);
+
+        deltaQueue = deltaQueue.slice(chunkSize);
+        appendToAssistant(nextChunk);
+      }, 28);
+    }
+
+    function stopPump() {
+      if (pumpTimer) {
+        clearInterval(pumpTimer);
+        pumpTimer = null;
+      }
+
+      if (deltaQueue) {
+        appendToAssistant(deltaQueue);
+        deltaQueue = "";
+      }
+    }
+
+    function finishAssistantStreaming() {
+      stopPump();
+
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? {
+                ...message,
+                streaming: false,
+              }
+            : message
+        )
+      );
+    }
 
     try {
       const response = await fetch("/api/chat/stream", {
@@ -207,6 +277,8 @@ export default function HomePage() {
       });
 
       if (!response.body) {
+        finishAssistantStreaming();
+
         setMessages((current) =>
           current.map((message) =>
             message.id === assistantId
@@ -225,37 +297,6 @@ export default function HomePage() {
       const decoder = new TextDecoder();
 
       let buffer = "";
-      let pendingDelta = "";
-      let flushTimer: ReturnType<typeof setTimeout> | null = null;
-
-      function flushPendingDelta() {
-        if (!pendingDelta) return;
-
-        const deltaToAppend = pendingDelta;
-        pendingDelta = "";
-
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantId
-              ? {
-                  ...message,
-                  content: `${message.content}${deltaToAppend}`,
-                }
-              : message
-          )
-        );
-      }
-
-      function queueDelta(delta: string) {
-        pendingDelta += delta;
-
-        if (flushTimer) return;
-
-        flushTimer = setTimeout(() => {
-          flushTimer = null;
-          flushPendingDelta();
-        }, 45);
-      }
 
       function applyEvent(eventName: string, dataText: string) {
         if (!dataText.trim()) return;
@@ -280,11 +321,19 @@ export default function HomePage() {
 
         if (eventName === "delta") {
           const delta = data.content || "";
-          queueDelta(delta);
+          deltaQueue += delta;
+          startPump();
+          return;
+        }
+
+        if (eventName === "done") {
+          finishAssistantStreaming();
           return;
         }
 
         if (eventName === "error") {
+          finishAssistantStreaming();
+
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantId
@@ -340,14 +389,10 @@ export default function HomePage() {
         processRawEvent(buffer);
       }
 
-      if (flushTimer) {
-        clearTimeout(flushTimer);
-        flushTimer = null;
-      }
-
-      flushPendingDelta();
+      finishAssistantStreaming();
     } catch (error) {
       console.error("Erro ao chamar a API:", error);
+      finishAssistantStreaming();
 
       setMessages((current) =>
         current.map((message) =>
@@ -499,12 +544,18 @@ export default function HomePage() {
                                 </div>
                               ) : null}
 
-                              <MarkdownContent content={message.content} />
+                              {message.streaming ? (
+                                <StreamingContent content={message.content} />
+                              ) : (
+                                <MarkdownContent content={message.content} />
+                              )}
 
-                              <AssistantDetails
-                                sources={message.sources}
-                                chunks={message.chunks}
-                              />
+                              {!message.streaming ? (
+                                <AssistantDetails
+                                  sources={message.sources}
+                                  chunks={message.chunks}
+                                />
+                              ) : null}
                             </>
                           )}
                         </div>
