@@ -43,6 +43,7 @@ const exampleQuestions = [
   "Quais formatos a base de conhecimento suporta no upload?",
   "Qual a diferença entre cloudlets standard e cloudlets premium?",
   "Qual CNAME foi informado como origem correta da aplicação da Ri Happy?",
+  "Explique como funciona o RAG nesta aplicação.",
 ];
 
 function formatScore(score?: number) {
@@ -52,103 +53,55 @@ function formatScore(score?: number) {
 
 function MarkdownContent({ content }: { content: string }) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        h1: ({ children }) => (
-          <h1 className="mb-4 text-2xl font-bold text-white">{children}</h1>
-        ),
-        h2: ({ children }) => (
-          <h2 className="mb-3 mt-5 text-xl font-bold text-white">{children}</h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="mb-2 mt-4 text-lg font-semibold text-white">{children}</h3>
-        ),
-        p: ({ children }) => (
-          <p className="mb-4 leading-7 text-neutral-100 last:mb-0">{children}</p>
-        ),
-        strong: ({ children }) => (
-          <strong className="font-bold text-white">{children}</strong>
-        ),
-        ul: ({ children }) => (
-          <ul className="mb-4 ml-5 list-disc space-y-2 text-neutral-100">{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="mb-4 ml-5 list-decimal space-y-3 text-neutral-100">{children}</ol>
-        ),
-        li: ({ children }) => <li className="pl-1 text-neutral-100">{children}</li>,
-        code: ({ children }) => (
-          <code className="rounded-md bg-neutral-900 px-1.5 py-0.5 text-orange-300">
-            {children}
-          </code>
-        ),
-        pre: ({ children }) => (
-          <pre className="mb-4 overflow-x-auto rounded-xl border border-neutral-800 bg-black p-4 text-sm text-neutral-100">
-            {children}
-          </pre>
-        ),
-        table: ({ children }) => (
-          <div className="mb-4 overflow-x-auto rounded-xl border border-neutral-800">
-            <table className="w-full border-collapse text-left text-sm">{children}</table>
-          </div>
-        ),
-        th: ({ children }) => (
-          <th className="border-b border-neutral-800 bg-neutral-900 px-3 py-2 font-semibold text-white">
-            {children}
-          </th>
-        ),
-        td: ({ children }) => (
-          <td className="border-b border-neutral-900 px-3 py-2 text-neutral-200">
-            {children}
-          </td>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+    <div className="prose prose-invert max-w-none prose-p:leading-7 prose-p:text-neutral-100 prose-li:text-neutral-100 prose-strong:text-white prose-strong:font-bold prose-code:text-orange-300 prose-code:bg-neutral-900 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-pre:bg-black prose-pre:border prose-pre:border-neutral-800 prose-pre:rounded-xl prose-table:text-sm prose-th:border-neutral-800 prose-td:border-neutral-800">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
   );
 }
 
-function AssistantMetadata({
+function AssistantDetails({
   sources = [],
   chunks = [],
 }: {
   sources?: RagSource[];
   chunks?: RagChunk[];
 }) {
-  const [openSources, setOpenSources] = useState(false);
-  const [openContext, setOpenContext] = useState(false);
+  const [showSources, setShowSources] = useState(false);
+  const [showContext, setShowContext] = useState(false);
 
   if (!sources.length && !chunks.length) return null;
 
   return (
-    <div className="mt-5 space-y-3">
+    <div className="mt-4 flex flex-col gap-3">
       {sources.length > 0 ? (
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-950">
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80">
           <button
             type="button"
-            onClick={() => setOpenSources((value) => !value)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-neutral-200"
+            onClick={() => setShowSources((value) => !value)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-neutral-300 transition hover:text-white"
           >
             <span>Fontes utilizadas ({sources.length})</span>
-            <span className="text-neutral-500">{openSources ? "Ocultar" : "Ver"}</span>
+            <span className="text-xs text-neutral-500">
+              {showSources ? "Ocultar" : "Mostrar"}
+            </span>
           </button>
 
-          {openSources ? (
-            <div className="space-y-2 border-t border-neutral-800 p-3">
+          {showSources ? (
+            <div className="grid gap-2 border-t border-neutral-800 p-3 md:grid-cols-2">
               {sources.map((source, index) => (
                 <div
                   key={`${source.source}-${source.chunkIndex}-${index}`}
-                  className="rounded-xl border border-neutral-800 bg-black p-3"
+                  className="rounded-xl border border-neutral-800 bg-black/60 p-3"
                 >
                   <p className="line-clamp-2 text-sm font-medium text-neutral-100">
                     {source.source}
                   </p>
+
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-neutral-900 px-2.5 py-1 text-xs text-neutral-400">
+                    <span className="rounded-full bg-neutral-900 px-2 py-1 text-xs text-neutral-400">
                       Chunk {source.chunkIndex}
                     </span>
-                    <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-xs text-orange-300">
+                    <span className="rounded-full bg-orange-500/10 px-2 py-1 text-xs text-orange-300">
                       Score {formatScore(source.score)}
                     </span>
                   </div>
@@ -160,22 +113,24 @@ function AssistantMetadata({
       ) : null}
 
       {chunks.length > 0 ? (
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-950">
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80">
           <button
             type="button"
-            onClick={() => setOpenContext((value) => !value)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-neutral-200"
+            onClick={() => setShowContext((value) => !value)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-neutral-300 transition hover:text-white"
           >
             <span>Contexto recuperado ({chunks.length})</span>
-            <span className="text-neutral-500">{openContext ? "Ocultar" : "Ver"}</span>
+            <span className="text-xs text-neutral-500">
+              {showContext ? "Ocultar" : "Mostrar"}
+            </span>
           </button>
 
-          {openContext ? (
+          {showContext ? (
             <div className="max-h-[420px] space-y-3 overflow-auto border-t border-neutral-800 p-3">
               {chunks.map((chunk, index) => (
                 <article
                   key={`${chunk.id}-${index}`}
-                  className="rounded-xl border border-neutral-800 bg-black p-3"
+                  className="rounded-xl border border-neutral-800 bg-black/60 p-3"
                 >
                   <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -207,14 +162,7 @@ function AssistantMetadata({
 
 export default function HomePage() {
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Olá! Sou o assistente RAG da aplicação. Faça uma pergunta sobre os documentos indexados na base de conhecimento.",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -238,7 +186,7 @@ export default function HomePage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -246,32 +194,34 @@ export default function HomePage() {
         body: JSON.stringify({ prompt: currentQuestion }),
       });
 
-      const data = (await res.json()) as ChatResponse;
+      const data = (await response.json()) as ChatResponse;
 
-      if (!res.ok || data.ok === false) {
-        const errorMessage: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          error: true,
-          content: data?.details
-            ? `${data?.error ?? "Erro"}\n\nDetalhes: ${data.details}`
-            : data?.error ?? "Erro ao processar a solicitação.",
-        };
-
-        setMessages((current) => [...current, errorMessage]);
+      if (!response.ok || data.ok === false) {
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            error: true,
+            content: data?.details
+              ? `${data?.error ?? "Erro"}\n\nDetalhes: ${data.details}`
+              : data?.error ?? "Erro ao processar a solicitação.",
+          },
+        ]);
         return;
       }
 
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.answer ?? "Sem resposta.",
-        mode: data.mode,
-        sources: data.sources ?? [],
-        chunks: data.chunks ?? [],
-      };
-
-      setMessages((current) => [...current, assistantMessage]);
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: data.answer ?? "Sem resposta.",
+          mode: data.mode,
+          sources: data.sources ?? [],
+          chunks: data.chunks ?? [],
+        },
+      ]);
     } catch (error) {
       console.error("Erro ao chamar a API:", error);
 
@@ -296,160 +246,175 @@ export default function HomePage() {
   }
 
   function clearChat() {
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content:
-          "Conversa limpa. Faça uma nova pergunta sobre a base de conhecimento.",
-      },
-    ]);
+    setMessages([]);
     setQuestion("");
+    textareaRef.current?.focus();
   }
 
   return (
-    <main className="min-h-screen bg-[#090909] text-white">
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[280px_1fr]">
-        <aside className="hidden border-r border-neutral-800 bg-neutral-950 p-4 lg:flex lg:flex-col">
-          <div className="mb-6">
-            <div className="mb-3 flex items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-orange-500" />
+    <main className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="flex min-h-screen flex-col">
+        <header className="sticky top-0 z-20 border-b border-neutral-900 bg-[#0a0a0a]/90 backdrop-blur">
+          <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-500 text-sm font-black text-black">
+                A
+              </div>
+
               <div>
-                <h1 className="text-sm font-bold">Azion RAG</h1>
-                <p className="text-xs text-neutral-500">Edge SQL + AI Inference</p>
+                <h1 className="text-sm font-semibold leading-none text-white">
+                  Azion RAG Chat
+                </h1>
+                <p className="mt-1 text-xs text-neutral-500">
+                  Edge SQL + AI Inference
+                </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={clearChat}
-              className="w-full rounded-xl border border-neutral-800 px-3 py-2 text-left text-sm text-neutral-200 transition hover:bg-neutral-900"
-            >
-              Nova conversa
-            </button>
-          </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={clearChat}
+                className="rounded-xl border border-neutral-800 px-3 py-2 text-xs font-medium text-neutral-300 transition hover:bg-neutral-900 hover:text-white"
+              >
+                Nova conversa
+              </button>
 
-          <div className="mb-6">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Exemplos
-            </p>
-
-            <div className="space-y-2">
-              {exampleQuestions.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => sendQuestion(item)}
-                  disabled={loading}
-                  className="w-full rounded-xl border border-neutral-800 bg-black px-3 py-3 text-left text-xs leading-5 text-neutral-300 transition hover:border-orange-500/60 hover:text-white disabled:opacity-50"
-                >
-                  {item}
-                </button>
-              ))}
+              <a
+                href="/knowledge"
+                className="rounded-xl bg-neutral-100 px-3 py-2 text-xs font-semibold text-black transition hover:bg-orange-500"
+              >
+                Base de conhecimento
+              </a>
             </div>
           </div>
+        </header>
 
-          <div className="mt-auto space-y-2">
-            <a
-              href="/knowledge"
-              className="block rounded-xl border border-neutral-800 px-3 py-3 text-sm text-neutral-200 transition hover:border-orange-500/60 hover:bg-orange-500/10"
-            >
-              Gerenciar base
-            </a>
+        <section className="flex-1 px-4 pb-36 pt-8">
+          <div className="mx-auto w-full max-w-3xl">
+            {messages.length === 0 ? (
+              <div className="flex min-h-[calc(100vh-220px)] flex-col items-center justify-center text-center">
+                <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-orange-500 text-2xl font-black text-black shadow-2xl shadow-orange-500/20">
+                  A
+                </div>
 
-            <p className="text-xs leading-5 text-neutral-600">
-              Application na Edge, embeddings com Qwen3, busca vetorial no Edge SQL e resposta com Mistral.
-            </p>
-          </div>
-        </aside>
+                <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+                  Como posso ajudar?
+                </h2>
 
-        <section className="flex min-h-screen flex-col">
-          <header className="flex items-center justify-between border-b border-neutral-800 bg-neutral-950/80 px-4 py-3 backdrop-blur lg:hidden">
-            <div>
-              <h1 className="text-sm font-bold">Azion RAG Chat</h1>
-              <p className="text-xs text-neutral-500">Edge SQL + AI Inference</p>
-            </div>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-400">
+                  Faça perguntas sobre a base de conhecimento ou use o assistente em modo geral quando não houver contexto relevante.
+                </p>
 
-            <a
-              href="/knowledge"
-              className="rounded-xl border border-neutral-800 px-3 py-2 text-xs text-neutral-200"
-            >
-              Base
-            </a>
-          </header>
-
-          <div className="flex-1 overflow-y-auto px-4 pb-36 pt-6">
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-              {messages.map((message) => {
-                const isUser = message.role === "user";
-
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex gap-4 ${isUser ? "justify-end" : "justify-start"}`}
-                  >
-                    {!isUser ? (
-                      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-xs font-bold text-black">
-                        AI
-                      </div>
-                    ) : null}
-
-                    <div
-                      className={
-                        isUser
-                          ? "max-w-[85%] rounded-3xl bg-neutral-800 px-5 py-4 text-sm leading-7 text-neutral-100"
-                          : message.error
-                            ? "max-w-[92%] rounded-3xl border border-red-500/40 bg-red-500/10 px-5 py-4 text-sm leading-7 text-red-100"
-                            : "max-w-[92%] rounded-3xl border border-neutral-800 bg-neutral-950 px-5 py-4 text-sm leading-7 text-neutral-100"
-                      }
+                <div className="mt-8 grid w-full grid-cols-1 gap-3 md:grid-cols-2">
+                  {exampleQuestions.map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => sendQuestion(example)}
+                      disabled={loading}
+                      className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4 text-left text-sm leading-6 text-neutral-300 transition hover:border-orange-500/70 hover:bg-neutral-900 hover:text-white disabled:opacity-50"
                     >
-                      {isUser ? (
-                        <p className="whitespace-pre-wrap">{message.content}</p>
-                      ) : (
-                        <>
-                          {message.mode ? (
-                            <div className="mb-3 flex flex-wrap gap-2">
-                              <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-xs leading-none text-orange-300">
-                                {message.mode}
-                              </span>
-                            </div>
-                          ) : null}
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {messages.map((message) => {
+                  const isUser = message.role === "user";
 
-                          <MarkdownContent content={message.content} />
+                  return (
+                    <div key={message.id} className="group">
+                      <div
+                        className={`flex gap-4 ${
+                          isUser ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        {!isUser ? (
+                          <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-sm font-black text-black">
+                            A
+                          </div>
+                        ) : null}
 
-                          <AssistantMetadata
-                            sources={message.sources}
-                            chunks={message.chunks}
-                          />
-                        </>
-                      )}
+                        <div
+                          className={
+                            isUser
+                              ? "max-w-[85%] rounded-3xl bg-neutral-800 px-5 py-4 text-sm leading-7 text-neutral-100"
+                              : message.error
+                                ? "w-full rounded-3xl border border-red-500/40 bg-red-500/10 px-5 py-4 text-sm leading-7 text-red-100"
+                                : "w-full rounded-3xl border border-neutral-900 bg-neutral-950/70 px-5 py-5 text-sm leading-7 text-neutral-100"
+                          }
+                        >
+                          {isUser ? (
+                            <p className="whitespace-pre-wrap">{message.content}</p>
+                          ) : (
+                            <>
+                              {message.mode ? (
+                                <div className="mb-4 flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={
+                                      message.mode === "llm-general"
+                                        ? "rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs leading-none text-blue-300"
+                                        : "rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-xs leading-none text-orange-300"
+                                    }
+                                  >
+                                    {message.mode === "llm-general"
+                                      ? "Resposta geral"
+                                      : "Resposta com RAG"}
+                                  </span>
+
+                                  {message.mode === "llm-general" ? (
+                                    <span className="text-xs text-neutral-500">
+                                      Sem fontes da base de conhecimento
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : null}
+
+                              <MarkdownContent content={message.content} />
+
+                              <AssistantDetails
+                                sources={message.sources}
+                                chunks={message.chunks}
+                              />
+                            </>
+                          )}
+                        </div>
+
+                        {isUser ? (
+                          <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-neutral-800 text-[10px] font-bold text-neutral-300">
+                            Você
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {loading ? (
+                  <div className="flex gap-4">
+                    <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-sm font-black text-black">
+                      A
                     </div>
 
-                    {isUser ? (
-                      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-neutral-800 text-xs font-bold text-neutral-300">
-                        Você
+                    <div className="rounded-3xl border border-neutral-900 bg-neutral-950/70 px-5 py-4 text-sm text-neutral-400">
+                      <div className="flex items-center gap-3">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />
+                        Consultando a base e gerando resposta...
                       </div>
-                    ) : null}
+                    </div>
                   </div>
-                );
-              })}
-
-              {loading ? (
-                <div className="flex gap-4">
-                  <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-xs font-bold text-black">
-                    AI
-                  </div>
-
-                  <div className="rounded-3xl border border-neutral-800 bg-neutral-950 px-5 py-4 text-sm text-neutral-400">
-                    Consultando a base de conhecimento...
-                  </div>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            )}
           </div>
+        </section>
 
-          <div className="fixed bottom-0 left-0 right-0 border-t border-neutral-800 bg-[#090909]/95 px-4 py-4 backdrop-blur lg:left-[280px]">
-            <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-3xl gap-3">
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-neutral-900 bg-[#0a0a0a]/95 px-4 py-4 backdrop-blur">
+          <form onSubmit={handleSubmit} className="mx-auto w-full max-w-3xl">
+            <div className="flex items-end gap-3 rounded-3xl border border-neutral-800 bg-neutral-950 p-2 shadow-2xl">
               <textarea
                 ref={textareaRef}
                 value={question}
@@ -460,24 +425,25 @@ export default function HomePage() {
                     sendQuestion();
                   }
                 }}
-                placeholder="Pergunte algo sobre a base de conhecimento..."
-                className="max-h-40 min-h-[56px] flex-1 resize-none rounded-2xl border border-neutral-800 bg-neutral-950 px-4 py-4 text-sm leading-6 text-white outline-none transition placeholder:text-neutral-600 focus:border-orange-500"
+                placeholder="Pergunte algo..."
+                rows={1}
+                className="max-h-40 min-h-[48px] flex-1 resize-none bg-transparent px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-neutral-600"
               />
 
               <button
                 type="submit"
                 disabled={!canSend}
-                className="h-[56px] rounded-2xl bg-orange-500 px-5 text-sm font-bold text-black transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mb-1 h-10 rounded-2xl bg-orange-500 px-4 text-sm font-bold text-black transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Enviar
               </button>
-            </form>
+            </div>
 
-            <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-neutral-600">
-              O assistente responde com base nos documentos recuperados via RAG.
+            <p className="mt-2 text-center text-xs text-neutral-600">
+              Enter envia · Shift + Enter quebra linha
             </p>
-          </div>
-        </section>
+          </form>
+        </div>
       </div>
     </main>
   );
