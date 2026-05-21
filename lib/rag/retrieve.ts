@@ -1,37 +1,23 @@
 import { generateEmbedding } from "./embeddings";
-import { searchChunks } from "./store";
 import { searchSimilarChunksByEmbedding } from "./vector-store";
 import { RetrievedChunk } from "./types";
+
+const VECTOR_TOP_K = 3;
+const MIN_VECTOR_SCORE = 0.7;
 
 export async function retrieveRelevantChunks(question: string): Promise<RetrievedChunk[]> {
   try {
     const questionEmbedding = await generateEmbedding(question);
-    const vectorChunks = await searchSimilarChunksByEmbedding(questionEmbedding, 3, 0.65);
 
-    if (vectorChunks.length > 0) {
-      return vectorChunks;
-    }
+    const vectorChunks = await searchSimilarChunksByEmbedding(
+      questionEmbedding,
+      VECTOR_TOP_K,
+      MIN_VECTOR_SCORE
+    );
+
+    return vectorChunks;
   } catch (error) {
-    console.error("Falha na busca vetorial. Usando fallback textual:", error);
+    console.error("Falha na busca vetorial:", error);
+    return [];
   }
-
-  const textChunks = await searchChunks(question);
-
-  if (textChunks.length > 0) {
-    return textChunks;
-  }
-
-  return [
-    {
-      id: "mock-empty-0",
-      source: "mock-empty-store",
-      chunkIndex: 0,
-      content:
-        "Nenhum documento real foi encontrado no Edge SQL. Faça uma ingestão primeiro usando /api/ingest.",
-      score: 0,
-      metadata: {
-        mode: "empty-edge-sql",
-      },
-    },
-  ];
 }

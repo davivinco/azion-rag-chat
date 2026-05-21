@@ -75,8 +75,8 @@ export async function generateMockRagAnswer(question: string): Promise<ChatAnswe
   if (!hasRealChunks) {
     return {
       answer:
-        "Ainda não encontrei documentos ingeridos no Edge SQL. Faça uma ingestão primeiro no endpoint /api/ingest e depois tente perguntar novamente.",
-      chunks,
+        "Não encontrei informações relevantes na base de conhecimento para responder essa pergunta com segurança.",
+      chunks: [],
       sources: [],
     };
   }
