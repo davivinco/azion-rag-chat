@@ -102,6 +102,40 @@ function normalizeMarkdown(content: string) {
 
   let normalized = normalizedLines.join("\n");
 
+  // Converte tabelas simples separadas por TAB em tabelas Markdown.
+  const tabLines = normalized.split("\n");
+  const convertedLines: string[] = [];
+
+  for (let index = 0; index < tabLines.length; index += 1) {
+    const line = tabLines[index];
+
+    if (line.includes("\t")) {
+      const cells = line
+        .split("\t")
+        .map((cell) => cell.trim())
+        .filter(Boolean);
+
+      if (cells.length >= 2) {
+        convertedLines.push(`| ${cells.join(" | ")} |`);
+
+        const nextLine = tabLines[index + 1] || "";
+        const isHeader =
+          !convertedLines[convertedLines.length - 2]?.startsWith("|") &&
+          nextLine.includes("\t");
+
+        if (isHeader) {
+          convertedLines.push(`| ${cells.map(() => "---").join(" | ")} |`);
+        }
+
+        continue;
+      }
+    }
+
+    convertedLines.push(line);
+  }
+
+  normalized = convertedLines.join("\n");
+
   // Corrige tabelas que às vezes chegam sem separador Markdown.
   normalized = normalized.replace(
     /\|\s*Componente\s*\|\s*Função\s*\|\n(?!\|\s*---)/gi,
@@ -248,7 +282,7 @@ function AssistantDetails({
               {sources.map((source, index) => (
                 <div
                   key={`${source.source}-${source.chunkIndex}-${index}`}
-                  className="rounded-xl border border-neutral-800 bg-black/60 p-3"
+                  className="rounded-2xl border border-neutral-800 bg-black/70 p-4"
                 >
                   <p className="line-clamp-2 text-sm font-medium text-neutral-100">
                     {source.source}
@@ -283,11 +317,11 @@ function AssistantDetails({
           </button>
 
           {showContext ? (
-            <div className="max-h-[420px] space-y-3 overflow-auto border-t border-neutral-800 p-3">
+            <div className="max-h-[520px] space-y-4 overflow-auto border-t border-neutral-800 bg-black/30 p-3">
               {chunks.map((chunk, index) => (
                 <article
                   key={`${chunk.id}-${index}`}
-                  className="rounded-xl border border-neutral-800 bg-black/60 p-3"
+                  className="rounded-2xl border border-neutral-800 bg-black/70 p-4"
                 >
                   <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -304,9 +338,9 @@ function AssistantDetails({
                     </span>
                   </div>
 
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-neutral-300">
-                    {chunk.content}
-                  </p>
+                  <div className="rounded-xl bg-neutral-950/70 px-3 py-2">
+                    <MarkdownContent content={chunk.content} />
+                  </div>
                 </article>
               ))}
             </div>

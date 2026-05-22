@@ -13,6 +13,17 @@ function truncateText(text: string, maxChars: number): string {
   return `${normalized.slice(0, maxChars).trim()}...`;
 }
 
+function truncateDisplayText(text: string, maxChars: number): string {
+  const normalized = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  if (normalized.length <= maxChars) return normalized;
+
+  return `${normalized.slice(0, maxChars).trim()}...`;
+}
+
 function buildSources(chunks: RetrievedChunk[]): RagSource[] {
   const bestSourceByDocument = new Map<string, RagSource>();
 
@@ -63,7 +74,7 @@ function buildContext(chunks: RetrievedChunk[]): string {
 function buildDisplayChunks(chunks: RetrievedChunk[]): RetrievedChunk[] {
   return chunks.map((chunk) => ({
     ...chunk,
-    content: truncateText(chunk.content, MAX_DISPLAY_CHARS_PER_CHUNK),
+    content: truncateDisplayText(chunk.content, MAX_DISPLAY_CHARS_PER_CHUNK),
   }));
 }
 
